@@ -50,7 +50,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		sw := SnoopResponseWriter(test.W, Hooks{})
+		sw := Wrap(test.W, Hooks{})
 		if _, got := sw.(http.CloseNotifier); got != test.WantCloseNotifier {
 			t.Errorf("got=%t want=%t", got, test.WantCloseNotifier)
 		}
@@ -149,7 +149,7 @@ func TestSnoopResponserWriter_integration(t *testing.T) {
 	for _, test := range tests {
 		func() {
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				sw := SnoopResponseWriter(w, test.Hooks)
+				sw := Wrap(w, test.Hooks)
 				test.Handler.ServeHTTP(sw, r)
 			})
 			s := httptest.NewServer(h)
@@ -198,7 +198,7 @@ func TestSnoopHandlerMetrics(t *testing.T) {
 		func() {
 			ch := make(chan Metrics, 1)
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ch <- SnoopMetrics(test.Handler, w, r)
+				ch <- CaptureMetrics(test.Handler, w, r)
 			})
 			s := httptest.NewServer(h)
 			defer s.Close()

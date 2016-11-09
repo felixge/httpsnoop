@@ -19,7 +19,7 @@ type Hooks struct {
 	CloseNotify func(next CloseNotifyFunc) CloseNotifyFunc
 }
 
-func SnoopResponseWriter(w http.ResponseWriter, h Hooks) http.ResponseWriter {
+func Wrap(w http.ResponseWriter, h Hooks) http.ResponseWriter {
 	rw := &rw{w: w, h: h}
 	_, fOk := w.(http.Flusher)
 	_, cnOk := w.(http.CloseNotifier)
@@ -97,7 +97,7 @@ type Metrics struct {
 	Written  int64
 }
 
-func SnoopMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Metrics {
+func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Metrics {
 	var (
 		start            = time.Now()
 		m                = Metrics{Code: http.StatusOK}
@@ -128,7 +128,7 @@ func SnoopMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Metr
 	)
 
 	go func() {
-		hnd.ServeHTTP(SnoopResponseWriter(w, hooks), r)
+		hnd.ServeHTTP(Wrap(w, hooks), r)
 		close(done)
 	}()
 
