@@ -99,37 +99,36 @@ type Metrics struct {
 
 func SnoopMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Metrics {
 	var (
-		m                = Metrics{Code: http.StatusOK}
 		start            = time.Now()
+		m                = Metrics{Code: http.StatusOK}
 		writeHeaderCount int
 		updates          = make(chan func())
 		done             = make(chan struct{})
+		hooks            = Hooks{
+			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
+				return func(code int) {
+					updates <- func() {
+						if writeHeaderCount == 0 {
+							m.Code = code
+							writeHeaderCount++
+						}
+						next(code)
+					}
+				}
+			},
+
+			Write: func(next WriteFunc) WriteFunc {
+				return func(p []byte) (int, error) {
+					n, err := next(p)
+					updates <- func() { m.Written += int64(n) }
+					return n, err
+				}
+			},
+		}
 	)
 
-	sw := SnoopResponseWriter(w, Hooks{
-		WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
-			return func(code int) {
-				updates <- func() {
-					if writeHeaderCount == 0 {
-						m.Code = code
-						writeHeaderCount++
-					}
-					next(code)
-				}
-			}
-		},
-
-		Write: func(next WriteFunc) WriteFunc {
-			return func(p []byte) (int, error) {
-				n, err := next(p)
-				updates <- func() { m.Written += int64(n) }
-				return n, err
-			}
-		},
-	})
-
 	go func() {
-		hnd.ServeHTTP(sw, r)
+		hnd.ServeHTTP(SnoopResponseWriter(w, hooks), r)
 		close(done)
 	}()
 
