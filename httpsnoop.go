@@ -12,11 +12,11 @@ type FlushFunc func()
 type CloseNotifyFunc func() <-chan bool
 
 type Hooks struct {
-	Header      func(next HeaderFunc) HeaderFunc
-	Write       func(next WriteFunc) WriteFunc
-	WriteHeader func(next WriteHeaderFunc) WriteHeaderFunc
-	Flush       func(next FlushFunc) FlushFunc
-	CloseNotify func(next CloseNotifyFunc) CloseNotifyFunc
+	Header      func(HeaderFunc) HeaderFunc
+	Write       func(WriteFunc) WriteFunc
+	WriteHeader func(WriteHeaderFunc) WriteHeaderFunc
+	Flush       func(FlushFunc) FlushFunc
+	CloseNotify func(CloseNotifyFunc) CloseNotifyFunc
 }
 
 func Wrap(w http.ResponseWriter, h Hooks) http.ResponseWriter {
