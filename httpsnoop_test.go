@@ -10,17 +10,109 @@ import (
 	"time"
 )
 
-// @TODO hijacker, ReaderFrom ?
-
 func TestSnoopResponserWriter_interfaces(t *testing.T) {
+	// @TODO(fg) is there a better way to test this? Perhaps using reflection?
 	tests := []struct {
 		W                 http.ResponseWriter
 		WantFlusher       bool
 		WantCloseNotifier bool
 		WantReaderFrom    bool
+		WantHijacker      bool
 	}{
 		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       false,
+			WantCloseNotifier: false,
+			WantReaderFrom:    false,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				http.Flusher
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       true,
+			WantCloseNotifier: false,
+			WantReaderFrom:    false,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				http.CloseNotifier
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       false,
+			WantCloseNotifier: true,
+			WantReaderFrom:    false,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				http.Flusher
+				http.CloseNotifier
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       true,
+			WantCloseNotifier: true,
+			WantReaderFrom:    false,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				io.ReaderFrom
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       false,
+			WantCloseNotifier: false,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				http.Flusher
+				io.ReaderFrom
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       true,
+			WantCloseNotifier: false,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Hijacker
+				http.CloseNotifier
+				io.ReaderFrom
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       false,
+			WantCloseNotifier: true,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Flusher
+				http.CloseNotifier
+				io.ReaderFrom
+			}{},
+			WantHijacker:      true,
+			WantFlusher:       true,
+			WantCloseNotifier: true,
+			WantReaderFrom:    true,
+		},
+		{
 			W:                 struct{ http.ResponseWriter }{},
+			WantHijacker:      false,
 			WantFlusher:       false,
 			WantCloseNotifier: false,
 			WantReaderFrom:    false,
@@ -30,6 +122,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.ResponseWriter
 				http.Flusher
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       true,
 			WantCloseNotifier: false,
 			WantReaderFrom:    false,
@@ -39,6 +132,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.ResponseWriter
 				http.CloseNotifier
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       false,
 			WantCloseNotifier: true,
 			WantReaderFrom:    false,
@@ -49,6 +143,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.Flusher
 				http.CloseNotifier
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       true,
 			WantCloseNotifier: true,
 			WantReaderFrom:    false,
@@ -58,6 +153,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.ResponseWriter
 				io.ReaderFrom
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       false,
 			WantCloseNotifier: false,
 			WantReaderFrom:    true,
@@ -68,6 +164,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.Flusher
 				io.ReaderFrom
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       true,
 			WantCloseNotifier: false,
 			WantReaderFrom:    true,
@@ -78,6 +175,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.CloseNotifier
 				io.ReaderFrom
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       false,
 			WantCloseNotifier: true,
 			WantReaderFrom:    true,
@@ -89,6 +187,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 				http.CloseNotifier
 				io.ReaderFrom
 			}{},
+			WantHijacker:      false,
 			WantFlusher:       true,
 			WantCloseNotifier: true,
 			WantReaderFrom:    true,

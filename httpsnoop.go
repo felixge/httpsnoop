@@ -1,7 +1,9 @@
 package httpsnoop
 
 import (
+	"bufio"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )
@@ -12,6 +14,7 @@ type WriteHeaderFunc func(int)
 type FlushFunc func()
 type CloseNotifyFunc func() <-chan bool
 type ReadFromFunc func(src io.Reader) (int64, error)
+type HijackFunc func() (net.Conn, *bufio.ReadWriter, error)
 
 type Hooks struct {
 	Header      func(HeaderFunc) HeaderFunc
@@ -20,55 +23,109 @@ type Hooks struct {
 	Flush       func(FlushFunc) FlushFunc
 	CloseNotify func(CloseNotifyFunc) CloseNotifyFunc
 	ReadFrom    func(ReadFromFunc) ReadFromFunc
+	Hijack      func(HijackFunc) HijackFunc
 }
 
-func Wrap(w http.ResponseWriter, h Hooks) http.ResponseWriter {
-	rw := &rw{w: w, h: h}
+func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
+	rw := &rw{w: w, h: hooks}
+	_, h := w.(http.Hijacker)
 	_, f := w.(http.Flusher)
 	_, cn := w.(http.CloseNotifier)
 	_, rf := w.(io.ReaderFrom)
 	switch {
-	case f && cn && rf:
+	case h && f && cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+		}{rw, rw, rw, rw, rw}
+	case h && f && cn && !rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.Flusher
+			http.CloseNotifier
+		}{rw, rw, rw, rw}
+	case h && f && !cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.Flusher
+			io.ReaderFrom
+		}{rw, rw, rw, rw}
+	case h && f && !cn && !rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.Flusher
+		}{rw, rw, rw}
+	case h && !f && cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.CloseNotifier
+			io.ReaderFrom
+		}{rw, rw, rw, rw}
+	case h && !f && cn && !rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			http.CloseNotifier
+		}{rw, rw, rw}
+	case h && !f && !cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+		}{rw, rw, rw}
+	case h && !f && !cn && !rf:
+		return struct {
+			http.ResponseWriter
+			http.Hijacker
+		}{rw, rw}
+	case !h && f && cn && rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
-	case f && cn && !rf:
+	case !h && f && cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 		}{rw, rw, rw}
-	case f && !cn && rf:
+	case !h && f && !cn && rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			io.ReaderFrom
 		}{rw, rw, rw}
-	case f && !cn && !rf:
+	case !h && f && !cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 		}{rw, rw}
-	case !f && cn && rf:
+	case !h && !f && cn && rf:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw}
-	case !f && cn && !rf:
+	case !h && !f && cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 		}{rw, rw}
-	case !f && !cn && rf:
+	case !h && !f && !cn && rf:
 		return struct {
 			http.ResponseWriter
 			io.ReaderFrom
 		}{rw, rw}
-	case !f && !cn && !rf:
+	case !h && !f && !cn && !rf:
 		return struct {
 			http.ResponseWriter
 		}{rw}
@@ -127,6 +184,14 @@ func (w *rw) ReadFrom(src io.Reader) (int64, error) {
 		f = w.h.ReadFrom(f)
 	}
 	return f(src)
+}
+
+func (w *rw) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	f := w.w.(http.Hijacker).Hijack
+	if w.h.Hijack != nil {
+		f = w.h.Hijack(f)
+	}
+	return f()
 }
 
 type Metrics struct {
