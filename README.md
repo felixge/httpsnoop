@@ -48,7 +48,7 @@ introducing subtle bugs into any non-trivial application.
 
 Another approach I've seen people take is to return a struct that implements
 all of the interfaces above. However, that's also problematic, because it's
-difficult to fake some of these interfaces behavior when the underlying
+difficult to fake some of these interfaces behaviors when the underlying
 `http.ResponseWriter` doesn't have an implementation. It's also dangerous,
 because an application may choose to operate differently, merely because it
 detects the presence of these additional interfaces.
