@@ -29,7 +29,8 @@ type HijackFunc func() (net.Conn, *bufio.ReadWriter, error)
 type ReadFromFunc func(src io.Reader) (int64, error)
 
 // Hooks defines a set of method interceptors for methods included in
-// http.ResponseWriter as well as some others, see Wrap for more details.
+// http.ResponseWriter as well as some others. You can think of them as
+// middleware for the function calls they target. See Wrap for more details.
 type Hooks struct {
 	Header      func(HeaderFunc) HeaderFunc
 	Write       func(WriteFunc) WriteFunc
