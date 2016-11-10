@@ -8,3 +8,4 @@ Doing this requires non-trivial wrapping of the http.ResponseWriter interface,
 which is also exposed for users interested in a more low-level API.
 
 [![GoDoc](https://godoc.org/github.com/felixge/httpsnoop?status.svg)](https://godoc.org/github.com/felixge/httpsnoop)
+[![Build Status](https://travis-ci.org/felixge/httpsnoop.svg?branch=master)](https://travis-ci.org/felixge/httpsnoop)
