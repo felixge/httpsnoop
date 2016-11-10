@@ -10,7 +10,7 @@ import (
 type Metrics struct {
 	// Code is the first http response code passed to the WriteHeader func of
 	// the ResponseWriter. If no such call is made, a default code of 200 is
-	// being used instead.
+	// assumed instead.
 	Code int
 	// Duration is the time it took to execute the handler.
 	Duration time.Duration
