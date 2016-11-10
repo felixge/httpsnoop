@@ -13,8 +13,6 @@ which is also exposed for users interested in a more low-level API.
 ## Usage Example
 
 ```go
-import "github.com/felixge/httpsnoop"
-
 // myH is your app's http handler, perhaps a http.ServeMux or similar.
 var myH http.Handler
 // wrappedH wraps myH in order to log every request.
