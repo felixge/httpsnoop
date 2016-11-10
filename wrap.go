@@ -7,14 +7,29 @@ import (
 	"net/http"
 )
 
+// HeaderFunc is part of the http.ResponseWriter interface.
 type HeaderFunc func() http.Header
-type WriteFunc func([]byte) (int, error)
+
+// WriteHeaderFunc is part of the http.ResponseWriter interface.
 type WriteHeaderFunc func(int)
+
+// WriteFunc is part of the http.ResponseWriter interface.
+type WriteFunc func([]byte) (int, error)
+
+// FlushFunc is part of the http.Flusher interface.
 type FlushFunc func()
+
+// CloseNotifyFunc is part of the http.CloseNotifier interface.
 type CloseNotifyFunc func() <-chan bool
-type ReadFromFunc func(src io.Reader) (int64, error)
+
+// HijackFunc is part of the http.Hijacker interface.
 type HijackFunc func() (net.Conn, *bufio.ReadWriter, error)
 
+// ReadFromFunc is part of the io.ReaderFrom interface.
+type ReadFromFunc func(src io.Reader) (int64, error)
+
+// Hooks defines a set of method interceptors for methods included in
+// http.ResponseWriter as well as some others, see Wrap for more details.
 type Hooks struct {
 	Header      func(HeaderFunc) HeaderFunc
 	Write       func(WriteFunc) WriteFunc
@@ -25,12 +40,26 @@ type Hooks struct {
 	Hijack      func(HijackFunc) HijackFunc
 }
 
+// Wrap returns a wrapped version of w that provides the exact same interface
+// as w. Specifically if w implements any combination of http.Hijacker,
+// http.Flusher, http.CloseNotifier and io.ReaderFrom, the wrapped version will
+// implement the exacty same combination. If no hooks are set, the wrapped
+// version behaves exactly as w. Hooks targeting methods not supported by w are
+// ignored. Any other hooks will intercept the method their target and may
+// modify the calls arguments and/or return values. The CaptureMetrics
+// implementation serves as a working example for how the hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
+	// TODO(fg) Go 1.7 has reflect.StructOf which could possibly replace the
+	// unfortunate abomination below. However, for now I care about Go 1.6
+	// support, and the performance impact of using reflect may also be
+	// considerable.
+
 	rw := &rw{w: w, h: hooks}
 	_, h := w.(http.Hijacker)
 	_, f := w.(http.Flusher)
 	_, cn := w.(http.CloseNotifier)
 	_, rf := w.(io.ReaderFrom)
+
 	switch {
 	case h && f && cn && rf:
 		return struct {
