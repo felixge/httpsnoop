@@ -10,7 +10,7 @@ func BenchmarkBaseline(b *testing.B) {
 	benchmark(b, false)
 }
 
-func BenchmarkSnoopMetrics(b *testing.B) {
+func BenchmarkCaptureMetrics(b *testing.B) {
 	benchmark(b, true)
 }
 

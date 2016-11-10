@@ -76,6 +76,18 @@ Anyway, the real problem here is that smuggling additional interfaces inside
 deep as the Go language specification itself. But that's okay, I still prefer
 Go over the alternatives ;).
 
+## Performance
+
+```
+BenchmarkBaseline-8      	   20000	     81837 ns/op
+BenchmarkCaptureMetrics-8	   20000	    103670 ns/op
+```
+
+As you can see, using `CaptureMetrics` on a vanilla http.Handler introduces
+an overhead of ~20μs per http request on my machine. This is very low, and
+should not have a noticable impact on your application unless you're doing
+thousands of requests per second per core.
+
 ## License
 
 MIT
