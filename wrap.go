@@ -42,11 +42,11 @@ type Hooks struct {
 
 // Wrap returns a wrapped version of w that provides the exact same interface
 // as w. Specifically if w implements any combination of http.Hijacker,
-// http.Flusher, http.CloseNotifier and io.ReaderFrom, the wrapped version will
-// implement the exacty same combination. If no hooks are set, the wrapped
-// version behaves exactly as w. Hooks targeting methods not supported by w are
-// ignored. Any other hooks will intercept the method their target and may
-// modify the calls arguments and/or return values. The CaptureMetrics
+// http.Flusher, http.CloseNotifier or io.ReaderFrom, the wrapped version will
+// implement the exact same combination. If no hooks are set, the wrapped
+// version also behaves exactly as w. Hooks targeting methods not supported by
+// w are ignored. Any other hooks will intercept the method they target and may
+// modify the call's arguments and/or return values. The CaptureMetrics
 // implementation serves as a working example for how the hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	// TODO(fg) Go 1.7 has reflect.StructOf which could possibly replace the
