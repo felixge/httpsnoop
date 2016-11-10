@@ -313,7 +313,7 @@ func TestSnoopResponserWriter_integration(t *testing.T) {
 	}
 }
 
-func TestSnoopHandlerMetrics(t *testing.T) {
+func TestCaptureMetrics(t *testing.T) {
 	tests := []struct {
 		Handler      http.Handler
 		WantDuration time.Duration
