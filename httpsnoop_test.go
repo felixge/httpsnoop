@@ -17,11 +17,13 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 		W                 http.ResponseWriter
 		WantFlusher       bool
 		WantCloseNotifier bool
+		WantReaderFrom    bool
 	}{
 		{
 			W:                 struct{ http.ResponseWriter }{},
 			WantFlusher:       false,
 			WantCloseNotifier: false,
+			WantReaderFrom:    false,
 		},
 		{
 			W: struct {
@@ -30,6 +32,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 			}{},
 			WantFlusher:       true,
 			WantCloseNotifier: false,
+			WantReaderFrom:    false,
 		},
 		{
 			W: struct {
@@ -38,6 +41,7 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 			}{},
 			WantFlusher:       false,
 			WantCloseNotifier: true,
+			WantReaderFrom:    false,
 		},
 		{
 			W: struct {
@@ -47,15 +51,56 @@ func TestSnoopResponserWriter_interfaces(t *testing.T) {
 			}{},
 			WantFlusher:       true,
 			WantCloseNotifier: true,
+			WantReaderFrom:    false,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				io.ReaderFrom
+			}{},
+			WantFlusher:       false,
+			WantCloseNotifier: false,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Flusher
+				io.ReaderFrom
+			}{},
+			WantFlusher:       true,
+			WantCloseNotifier: false,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.CloseNotifier
+				io.ReaderFrom
+			}{},
+			WantFlusher:       false,
+			WantCloseNotifier: true,
+			WantReaderFrom:    true,
+		},
+		{
+			W: struct {
+				http.ResponseWriter
+				http.Flusher
+				http.CloseNotifier
+				io.ReaderFrom
+			}{},
+			WantFlusher:       true,
+			WantCloseNotifier: true,
+			WantReaderFrom:    true,
 		},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		sw := Wrap(test.W, Hooks{})
 		if _, got := sw.(http.CloseNotifier); got != test.WantCloseNotifier {
-			t.Errorf("got=%t want=%t", got, test.WantCloseNotifier)
+			t.Errorf("#%d: got=%t want=%t", i, got, test.WantCloseNotifier)
 		}
 		if _, got := sw.(http.Flusher); got != test.WantFlusher {
-			t.Errorf("got=%t want=%t", got, test.WantFlusher)
+			t.Errorf("#%d: got=%t want=%t", i, got, test.WantFlusher)
 		}
 	}
 }

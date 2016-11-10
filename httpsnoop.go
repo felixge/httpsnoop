@@ -1,6 +1,7 @@
 package httpsnoop
 
 import (
+	"io"
 	"net/http"
 	"time"
 )
@@ -10,6 +11,7 @@ type WriteFunc func([]byte) (int, error)
 type WriteHeaderFunc func(int)
 type FlushFunc func()
 type CloseNotifyFunc func() <-chan bool
+type ReadFromFunc func(src io.Reader) (int64, error)
 
 type Hooks struct {
 	Header      func(HeaderFunc) HeaderFunc
@@ -17,33 +19,61 @@ type Hooks struct {
 	WriteHeader func(WriteHeaderFunc) WriteHeaderFunc
 	Flush       func(FlushFunc) FlushFunc
 	CloseNotify func(CloseNotifyFunc) CloseNotifyFunc
+	ReadFrom    func(ReadFromFunc) ReadFromFunc
 }
 
 func Wrap(w http.ResponseWriter, h Hooks) http.ResponseWriter {
 	rw := &rw{w: w, h: h}
-	_, fOk := w.(http.Flusher)
-	_, cnOk := w.(http.CloseNotifier)
-	if fOk && cnOk {
+	_, f := w.(http.Flusher)
+	_, cn := w.(http.CloseNotifier)
+	_, rf := w.(io.ReaderFrom)
+	switch {
+	case f && cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+		}{rw, rw, rw, rw}
+	case f && cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 		}{rw, rw, rw}
-	} else if fOk {
+	case f && !cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+		}{rw, rw, rw}
+	case f && !cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 		}{rw, rw}
-	} else if cnOk {
+	case !f && cn && rf:
+		return struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+		}{rw, rw, rw}
+	case !f && cn && !rf:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 		}{rw, rw}
-	} else {
+	case !f && !cn && rf:
+		return struct {
+			http.ResponseWriter
+			io.ReaderFrom
+		}{rw, rw}
+	case !f && !cn && !rf:
 		return struct {
 			http.ResponseWriter
 		}{rw}
 	}
+	panic("unreachable")
 }
 
 type rw struct {
@@ -89,6 +119,14 @@ func (w *rw) CloseNotify() <-chan bool {
 		f = w.h.CloseNotify(f)
 	}
 	return f()
+}
+
+func (w *rw) ReadFrom(src io.Reader) (int64, error) {
+	f := w.w.(io.ReaderFrom).ReadFrom
+	if w.h.ReadFrom != nil {
+		f = w.h.ReadFrom(f)
+	}
+	return f(src)
 }
 
 type Metrics struct {
