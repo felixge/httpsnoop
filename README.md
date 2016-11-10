@@ -75,3 +75,7 @@ Anyway, the real problem here is that smuggling additional interfaces inside
 http.ResponseWriter is a problematic design choice, but it probably goes as
 deep as the Go language specification itself. But that's okay, I still prefer
 Go over the alternatives ;).
+
+## License
+
+MIT
