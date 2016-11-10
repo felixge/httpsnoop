@@ -39,12 +39,12 @@ lots of advise and code examples that suggest it to be a fairly trivial
 undertaking. Unfortunately everything I've seen so far has a high chance of
 breaking your application.
 
-The main problem is that a http.ResponseWriter often implements additional
-interfaces such as http.Flusher, http.CloseNotifier, http.Hijacker and
-io.ReaderFrom. So the naive approach of just wrapping http.ResponseWriter in
-your own struct implementing the same interface will hide the additional
-interfaces mentioned above. This has a high change of introducing subtle bugs
-into any non-trivial application.
+The main problem is that a `http.ResponseWriter` often implements additional
+interfaces such as `http.Flusher`, `http.CloseNotifier`, `http.Hijacker` and
+`io.ReaderFrom`. So the naive approach of just wrapping `http.ResponseWriter`
+in your own struct that also implements the `http.ResponseWriter` interface
+will hide the additional interfaces mentioned above. This has a high change of
+introducing subtle bugs into any non-trivial application.
 
 Another approach I've seen people take is to return a struct that implements
 all of the interfaces above. However, that's also problematic, because it's
@@ -59,8 +59,8 @@ exact same set of interfaces.
 
 Additionally this package properly handles edge cases such as WriteHeader not
 being called, or called more than once, as well as concurrent calls to
-http.ResponseWriter methods, and even calls happening after the wrapped
-ServeHTTP has already returned.
+`http.ResponseWriter` methods, and even calls happening after the wrapped
+`ServeHTTP` has already returned.
 
 Unfortunately this package is not perfect either. It's possible that it is
 still missing some interfaces provided by the go core (let me know if you find
