@@ -44,6 +44,10 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 		hooks            = Hooks{
 			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
 				return func(code int) {
+					// Note: it's important to call next() here and not in the update
+					// func below, otherwise hooked calls might end up being executed out
+					// of order. This goes for all hooks.
+					next(code)
 					// We need to do this select in every hook, otherwise we would block
 					// callers from go routines that exceed the call duration of the
 					// hnd.ServeHTTP call below. One may argue that this would be
@@ -55,7 +59,6 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 							m.Code = code
 							writeHeaderCount++
 						}
-						next(code)
 					}:
 					case <-done:
 					}
