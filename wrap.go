@@ -54,6 +54,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	// unfortunate abomination below. However, for now I care about Go 1.6
 	// support, and the performance impact of using reflect may also be
 	// considerable.
+	// See https://github.com/golang/go/issues/16726 if you're interested in
+	// why I can't use Go 1.7 until my new MBP arrives ...
 
 	rw := &rw{w: w, h: hooks}
 	_, h := w.(http.Hijacker)
