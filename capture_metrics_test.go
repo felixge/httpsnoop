@@ -30,6 +30,13 @@ func TestCaptureMetrics(t *testing.T) {
 			WantWritten:  6,
 			WantDuration: 25 * time.Millisecond,
 		},
+		{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("foo"))
+				w.WriteHeader(http.StatusNotFound)
+			}),
+			WantCode: http.StatusOK,
+		},
 	}
 
 	for _, test := range tests {

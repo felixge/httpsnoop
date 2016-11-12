@@ -36,12 +36,12 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 	// [2] https://www.youtube.com/watch?v=yCbon_9yGVs
 
 	var (
-		start            = time.Now()
-		m                = Metrics{Code: http.StatusOK}
-		writeHeaderCount int
-		updates          = make(chan func())
-		done             = make(chan struct{})
-		hooks            = Hooks{
+		start         = time.Now()
+		m             = Metrics{Code: http.StatusOK}
+		headerWritten bool
+		updates       = make(chan func())
+		done          = make(chan struct{})
+		hooks         = Hooks{
 			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
 				return func(code int) {
 					// Note: it's important to call next() here and not in the update
@@ -55,9 +55,9 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 					// feeling charitable today ;).
 					select {
 					case updates <- func() {
-						if writeHeaderCount == 0 {
+						if !headerWritten {
 							m.Code = code
-							writeHeaderCount++
+							headerWritten = true
 						}
 					}:
 					case <-done:
@@ -69,7 +69,10 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 				return func(p []byte) (int, error) {
 					n, err := next(p)
 					select {
-					case updates <- func() { m.Written += int64(n) }:
+					case updates <- func() {
+						m.Written += int64(n)
+						headerWritten = true
+					}:
 					case <-done:
 					}
 					return n, err
@@ -80,7 +83,10 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
 					select {
-					case updates <- func() { m.Written += n }:
+					case updates <- func() {
+						headerWritten = true
+						m.Written += n
+					}:
 					case <-done:
 					}
 					return n, err
