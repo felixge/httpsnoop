@@ -95,6 +95,11 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 		}
 	)
 
+	// Allow usage for simple servers using http.DefaultServeMux as their http.Handler
+	if hnd == nil {
+		hnd = http.DefaultServeMux
+	}
+
 	// Having to spawn an additional go routine here might be a bit unfortunate
 	// from a performance perspective, but I'm not sure if it can be avoided.
 	// --fg

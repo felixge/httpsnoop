@@ -36,6 +36,9 @@ func TestCaptureMetrics(t *testing.T) {
 				w.WriteHeader(http.StatusNotFound)
 			}),
 			WantCode: http.StatusOK,
+		}, {
+			Handler:  nil,
+			WantCode: http.StatusNotFound,
 		},
 	}
 
