@@ -3,6 +3,7 @@ package httpsnoop
 import (
 	"io"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -25,42 +26,20 @@ type Metrics struct {
 // CaptureMetrics wraps the given hnd, executes it with the given w and r, and
 // returns the metrics it captured from it.
 func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Metrics {
-	// We use the updates channel and for loop below as an event loop that
-	// guarantees non-overlapping execution of the closures sent through the
-	// channel. This allows safe access to the m struct, even if hooks are being
-	// called concurrently. The same could also be accomplished by a mutex, but
-	// I've been waiting for an opportunity to try out the ideas from a few talks
-	// on the topic [1][2] :).
-	//
-	// [1] https://www.youtube.com/watch?v=5buaPyJ0XeQ
-	// [2] https://www.youtube.com/watch?v=yCbon_9yGVs
-
 	var (
 		start         = time.Now()
 		m             = Metrics{Code: http.StatusOK}
 		headerWritten bool
-		updates       = make(chan func())
-		done          = make(chan struct{})
+		lock          sync.Mutex
 		hooks         = Hooks{
 			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
 				return func(code int) {
-					// Note: it's important to call next() here and not in the update
-					// func below, otherwise hooked calls might end up being executed out
-					// of order. This goes for all hooks.
 					next(code)
-					// We need to do this select in every hook, otherwise we would block
-					// callers from go routines that exceed the call duration of the
-					// hnd.ServeHTTP call below. One may argue that this would be
-					// justifiable punishment for those misbehaved callers, but I'm
-					// feeling charitable today ;).
-					select {
-					case updates <- func() {
-						if !headerWritten {
-							m.Code = code
-							headerWritten = true
-						}
-					}:
-					case <-done:
+					lock.Lock()
+					defer lock.Unlock()
+					if !headerWritten {
+						m.Code = code
+						headerWritten = true
 					}
 				}
 			},
@@ -68,13 +47,10 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 			Write: func(next WriteFunc) WriteFunc {
 				return func(p []byte) (int, error) {
 					n, err := next(p)
-					select {
-					case updates <- func() {
-						m.Written += int64(n)
-						headerWritten = true
-					}:
-					case <-done:
-					}
+					lock.Lock()
+					defer lock.Unlock()
+					m.Written += int64(n)
+					headerWritten = true
 					return n, err
 				}
 			},
@@ -82,34 +58,17 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 			ReadFrom: func(next ReadFromFunc) ReadFromFunc {
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
-					select {
-					case updates <- func() {
-						headerWritten = true
-						m.Written += n
-					}:
-					case <-done:
-					}
+					lock.Lock()
+					defer lock.Unlock()
+					headerWritten = true
+					m.Written += n
 					return n, err
 				}
 			},
 		}
 	)
 
-	// Having to spawn an additional go routine here might be a bit unfortunate
-	// from a performance perspective, but I'm not sure if it can be avoided.
-	// --fg
-	go func() {
-		hnd.ServeHTTP(Wrap(w, hooks), r)
-		close(done)
-	}()
-
-	for {
-		select {
-		case update := <-updates:
-			update()
-		case <-done:
-			m.Duration = time.Since(start)
-			return m
-		}
-	}
+	hnd.ServeHTTP(Wrap(w, hooks), r)
+	m.Duration = time.Since(start)
+	return m
 }
