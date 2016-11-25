@@ -79,14 +79,15 @@ Go over the alternatives ;).
 ## Performance
 
 ```
-BenchmarkBaseline-8      	   20000	     81837 ns/op
-BenchmarkCaptureMetrics-8	   20000	    103670 ns/op
+BenchmarkBaseline-8      	   20000	     94912 ns/op
+BenchmarkCaptureMetrics-8	   20000	     95461 ns/op
 ```
 
-As you can see, using `CaptureMetrics` on a vanilla http.Handler introduces
-an overhead of ~20μs per http request on my machine. This is very low, and
-should not have a noticable impact on your application unless you're doing
-thousands of requests per second per core.
+As you can see, using `CaptureMetrics` on a vanilla http.Handler introduces an
+overhead of ~500 ns per http request on my machine. However, the margin of
+error appears to be larger than that, therefor it should be reasonable to
+assume that the overhead introduced by `CaptureMetrics` is absolutely
+negligible.
 
 ## License
 
