@@ -3,7 +3,9 @@
 package httpsnoop
 
 import (
+	"bufio"
 	"io"
+	"net"
 	"net/http"
 )
 

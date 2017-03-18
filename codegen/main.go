@@ -23,6 +23,8 @@ func (ifaces Interfaces) Implementation() *Generator {
 	g.Printf("import (\n")
 	g.Printf(`"net/http"` + "\n")
 	g.Printf(`"io"` + "\n")
+	g.Printf(`"net"` + "\n")
+	g.Printf(`"bufio"` + "\n")
 	g.Printf(")\n")
 	g.Printf("\n")
 
