@@ -222,4 +222,3 @@ func (w *rw) ReadFrom(src io.Reader) (int64, error) {
 	}
 	return f(src)
 }
-

@@ -4,84 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"io/ioutil"
 	"os"
 	"strings"
 )
 
-type Interface struct {
-	Name  string
-	Funcs []*InterfaceFunc
-}
+type Interfaces []*Interface
 
-type InterfaceFunc struct {
-	Name    string
-	Args    FuncArgs
-	Returns string
-}
-
-type FuncArgs []*FuncArg
-
-func (fa FuncArgs) String() string {
-	args := make([]string, len(fa))
-	for i, a := range fa {
-		args[i] = a.Name + " " + a.Type
-	}
-	return strings.Join(args, ", ")
-}
-
-func (fa FuncArgs) Names() string {
-	args := make([]string, len(fa))
-	for i, a := range fa {
-		args[i] = a.Name
-	}
-	return strings.Join(args, ", ")
-}
-
-type FuncArg struct {
-	Name string
-	Type string
-}
-
-func (fn *InterfaceFunc) Type() string {
-	return fn.Name + "Func"
-}
-
-var ifaces = []*Interface{
-	{
-		Name: "http.ResponseWriter",
-		Funcs: []*InterfaceFunc{
-			{"Header", nil, "http.Header"},
-			{"WriteHeader", FuncArgs{{"code", "int"}}, ""},
-			{"Write", FuncArgs{{"b", "[]byte"}}, "int, error"},
-		},
-	},
-	{
-		Name: "http.Flusher",
-		Funcs: []*InterfaceFunc{
-			{"Flush", nil, ""},
-		},
-	},
-	{
-		Name: "http.CloseNotifier",
-		Funcs: []*InterfaceFunc{
-			{"CloseNotify", nil, "<-chan bool"},
-		},
-	},
-	{
-		Name: "http.Hijacker",
-		Funcs: []*InterfaceFunc{
-			{"Hijack", nil, "net.Conn, *bufio.ReadWriter, error"},
-		},
-	},
-	{
-		Name: "io.ReaderFrom",
-		Funcs: []*InterfaceFunc{
-			{"ReadFrom", FuncArgs{{"src", "io.Reader"}}, "int64, error"},
-		},
-	},
-}
-
-func main() {
+func (ifaces Interfaces) Implementation() *Generator {
 	// subIfaces has all interfaces except http.ResponseWriter
 	subIfaces := ifaces[1:]
 
@@ -190,11 +120,80 @@ type rw struct {
 			g.Printf("\n")
 		}
 	}
-	src, err := g.Format()
-	if err != nil {
-		fatalf("format: %s:\n\n%s", err, g.Bytes())
+	return &g
+}
+
+type Interface struct {
+	Name  string
+	Funcs []*InterfaceFunc
+}
+
+type InterfaceFunc struct {
+	Name    string
+	Args    FuncArgs
+	Returns string
+}
+
+type FuncArgs []*FuncArg
+
+func (fa FuncArgs) String() string {
+	args := make([]string, len(fa))
+	for i, a := range fa {
+		args[i] = a.Name + " " + a.Type
 	}
-	fmt.Printf("%s\n", src)
+	return strings.Join(args, ", ")
+}
+
+func (fa FuncArgs) Names() string {
+	args := make([]string, len(fa))
+	for i, a := range fa {
+		args[i] = a.Name
+	}
+	return strings.Join(args, ", ")
+}
+
+type FuncArg struct {
+	Name string
+	Type string
+}
+
+func (fn *InterfaceFunc) Type() string {
+	return fn.Name + "Func"
+}
+
+var ifaces = Interfaces{
+	{
+		Name: "http.ResponseWriter",
+		Funcs: []*InterfaceFunc{
+			{"Header", nil, "http.Header"},
+			{"WriteHeader", FuncArgs{{"code", "int"}}, ""},
+			{"Write", FuncArgs{{"b", "[]byte"}}, "int, error"},
+		},
+	},
+	{
+		Name: "http.Flusher",
+		Funcs: []*InterfaceFunc{
+			{"Flush", nil, ""},
+		},
+	},
+	{
+		Name: "http.CloseNotifier",
+		Funcs: []*InterfaceFunc{
+			{"CloseNotify", nil, "<-chan bool"},
+		},
+	},
+	{
+		Name: "http.Hijacker",
+		Funcs: []*InterfaceFunc{
+			{"Hijack", nil, "net.Conn, *bufio.ReadWriter, error"},
+		},
+	},
+	{
+		Name: "io.ReaderFrom",
+		Funcs: []*InterfaceFunc{
+			{"ReadFrom", FuncArgs{{"src", "io.Reader"}}, "int64, error"},
+		},
+	},
 }
 
 type Generator struct {
@@ -205,12 +204,33 @@ func (g *Generator) Printf(s string, args ...interface{}) {
 	fmt.Fprintf(&g.buf, s, args...)
 }
 
+func (g *Generator) WriteFile(name string) error {
+	src, err := g.Format()
+	if err != nil {
+		return fmt.Errorf("format: %s: %s:\n\n%s\n", name, err, g.Bytes())
+	} else if err := ioutil.WriteFile(name, src, 0611); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (g *Generator) MustWriteFile(name string) {
+	if err := g.WriteFile(name); err != nil {
+		fatalf("%s", err)
+	}
+}
+
 func (g *Generator) Bytes() []byte {
 	return g.buf.Bytes()
 }
 
 func (g *Generator) Format() ([]byte, error) {
 	return format.Source(g.Bytes())
+}
+
+func main() {
+	ifaces.Implementation().MustWriteFile("wrap_generated.go")
 }
 
 func fatalf(s string, args ...interface{}) {
