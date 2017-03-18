@@ -1,6 +1,9 @@
-.PHONY: generate clean
+.PHONY: ci generate clean
 
-generate: clean
+ci: clean generate
+	go test -v ./...
+
+generate:
 	go generate .
 
 clean:
