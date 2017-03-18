@@ -64,43 +64,51 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	_, i2 := w.(http.Hijacker)
 	_, i3 := w.(io.ReaderFrom)
 	switch {
+	// combination 1/16
 	case !i0 && !i1 && !i2 && !i3:
 		return struct {
 			http.ResponseWriter
 		}{rw}
+	// combination 2/16
 	case !i0 && !i1 && !i2 && i3:
 		return struct {
 			http.ResponseWriter
 			io.ReaderFrom
 		}{rw, rw}
+	// combination 3/16
 	case !i0 && !i1 && i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.Hijacker
 		}{rw, rw}
+	// combination 4/16
 	case !i0 && !i1 && i2 && i3:
 		return struct {
 			http.ResponseWriter
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw}
+	// combination 5/16
 	case !i0 && i1 && !i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 		}{rw, rw}
+	// combination 6/16
 	case !i0 && i1 && !i2 && i3:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw}
+	// combination 7/16
 	case !i0 && i1 && i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			http.Hijacker
 		}{rw, rw, rw}
+	// combination 8/16
 	case !i0 && i1 && i2 && i3:
 		return struct {
 			http.ResponseWriter
@@ -108,23 +116,27 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
+	// combination 9/16
 	case i0 && !i1 && !i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 		}{rw, rw}
+	// combination 10/16
 	case i0 && !i1 && !i2 && i3:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			io.ReaderFrom
 		}{rw, rw, rw}
+	// combination 11/16
 	case i0 && !i1 && i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			http.Hijacker
 		}{rw, rw, rw}
+	// combination 12/16
 	case i0 && !i1 && i2 && i3:
 		return struct {
 			http.ResponseWriter
@@ -132,12 +144,14 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
+	// combination 13/16
 	case i0 && i1 && !i2 && !i3:
 		return struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 		}{rw, rw, rw}
+	// combination 14/16
 	case i0 && i1 && !i2 && i3:
 		return struct {
 			http.ResponseWriter
@@ -145,6 +159,7 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
+	// combination 15/16
 	case i0 && i1 && i2 && !i3:
 		return struct {
 			http.ResponseWriter
@@ -152,6 +167,7 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			http.Hijacker
 		}{rw, rw, rw, rw}
+	// combination 16/16
 	case i0 && i1 && i2 && i3:
 		return struct {
 			http.ResponseWriter
