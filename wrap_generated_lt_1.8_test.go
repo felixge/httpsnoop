@@ -12,6 +12,7 @@ import (
 func TestWrap(t *testing.T) {
 	// combination 1/16
 	{
+		t.Log("http.ResponseWriter")
 		w := Wrap(struct {
 			http.ResponseWriter
 		}{}, Hooks{})
@@ -34,6 +35,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 2/16
 	{
+		t.Log("http.ResponseWriter, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			io.ReaderFrom
@@ -57,6 +59,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 3/16
 	{
+		t.Log("http.ResponseWriter, http.Hijacker")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Hijacker
@@ -80,6 +83,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 4/16
 	{
+		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Hijacker
@@ -104,6 +108,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 5/16
 	{
+		t.Log("http.ResponseWriter, http.CloseNotifier")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.CloseNotifier
@@ -127,6 +132,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 6/16
 	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.CloseNotifier
@@ -151,6 +157,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 7/16
 	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.CloseNotifier
@@ -175,6 +182,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 8/16
 	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.CloseNotifier
@@ -200,6 +208,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 9/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -223,6 +232,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 10/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -247,6 +257,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 11/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -271,6 +282,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 12/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -296,6 +308,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 13/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -320,6 +333,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 14/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -345,6 +359,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 15/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher
@@ -370,6 +385,7 @@ func TestWrap(t *testing.T) {
 
 	// combination 16/16
 	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
 		w := Wrap(struct {
 			http.ResponseWriter
 			http.Flusher

@@ -179,6 +179,7 @@ func (b *Build) Tests() *Generator {
 		}
 		g.Printf("// combination %d/%d\n", i+1, combinations)
 		g.Printf("{\n")
+		g.Printf(`t.Log("%s")`+"\n", strings.Join(fields, ", "))
 		g.Printf("w := Wrap(struct{\n%s\n}{}, Hooks{})\n", strings.Join(fields, "\n"))
 		for i, iface := range ifaces {
 			g.Printf("if _, ok := w.(%s); ok != %t {\n", iface.Name, expected[i])
