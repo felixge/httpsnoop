@@ -3,9 +3,7 @@
 package httpsnoop
 
 import (
-	"bufio"
 	"io"
-	"net"
 	"net/http"
 )
 
@@ -224,3 +222,4 @@ func (w *rw) ReadFrom(src io.Reader) (int64, error) {
 	}
 	return f(src)
 }
+

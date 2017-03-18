@@ -1,4 +1,4 @@
-//go:generate bash -c "go run codegen/main.go > wrap_gen.go"
+//go:generate bash -c "go run codegen/main.go > wrap_generated.go"
 
 package httpsnoop
 
