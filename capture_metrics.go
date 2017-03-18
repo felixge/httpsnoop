@@ -1,3 +1,5 @@
+//go:generate bash -c "go run codegen/main.go > wrap_gen.go"
+
 package httpsnoop
 
 import (
