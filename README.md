@@ -40,7 +40,7 @@ undertaking. Unfortunately everything I've seen so far has a high chance of
 breaking your application.
 
 The main problem is that a `http.ResponseWriter` often implements additional
-interfaces such as `http.Flusher`, `http.CloseNotifier`, `http.Hijacker` and
+interfaces such as `http.Flusher`, `http.CloseNotifier`, `http.Hijacker`, `http.Pusher`, and
 `io.ReaderFrom`. So the naive approach of just wrapping `http.ResponseWriter`
 in your own struct that also implements the `http.ResponseWriter` interface
 will hide the additional interfaces mentioned above. This has a high change of
