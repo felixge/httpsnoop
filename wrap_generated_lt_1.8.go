@@ -357,3 +357,14 @@ func (w *rw) ReadFrom(src io.Reader) (int64, error) {
 	}
 	return f(src)
 }
+
+// Unwrap returns the underlying http.ResponseWriter from within zero or more
+// layers of httpsnoop wrappers.
+func Unwrap(w http.ResponseWriter) http.ResponseWriter {
+	if rw, ok := w.(Unwrapper); ok {
+		// recurse until rw.Unwrap() returns a non-Unwrapper
+		return Unwrap(rw.Unwrap())
+	} else {
+		return w
+	}
+}
