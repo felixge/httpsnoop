@@ -13,9 +13,10 @@ func TestWrap(t *testing.T) {
 	// combination 1/16
 	{
 		t.Log("http.ResponseWriter")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -30,16 +31,25 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 2/16
 	{
 		t.Log("http.ResponseWriter, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -54,16 +64,25 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 3/16
 	{
 		t.Log("http.ResponseWriter, http.Hijacker")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Hijacker
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -78,17 +97,26 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 4/16
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Hijacker
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -103,16 +131,25 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 5/16
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.CloseNotifier
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -127,17 +164,26 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 6/16
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -152,17 +198,26 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 7/16
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			http.Hijacker
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -177,18 +232,27 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 8/16
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.CloseNotifier
 			http.Hijacker
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -204,15 +268,24 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
 	}
 
 	// combination 9/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -227,17 +300,26 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 10/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -252,17 +334,26 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 11/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.Hijacker
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -277,18 +368,27 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 12/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.Hijacker
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -304,16 +404,25 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
 	}
 
 	// combination 13/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -328,18 +437,27 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 
 	// combination 14/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -355,17 +473,26 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
 	}
 
 	// combination 15/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 			http.Hijacker
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -381,18 +508,27 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
 	}
 
 	// combination 16/16
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
-		w := Wrap(struct {
+		inner := struct {
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 			http.Hijacker
 			io.ReaderFrom
-		}{}, Hooks{})
+		}{}
+		w := Wrap(inner, Hooks{})
 		if _, ok := w.(http.ResponseWriter); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -407,6 +543,14 @@ func TestWrap(t *testing.T) {
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
 		}
 	}
 

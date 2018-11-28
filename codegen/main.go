@@ -204,12 +204,21 @@ func (b *Build) Tests() *Generator {
 		g.Printf("// combination %d/%d\n", i+1, combinations)
 		g.Printf("{\n")
 		g.Printf(`t.Log("%s")`+"\n", strings.Join(fields, ", "))
-		g.Printf("w := Wrap(struct{\n%s\n}{}, Hooks{})\n", strings.Join(fields, "\n"))
+		g.Printf("inner := struct{\n%s\n}{}\n", strings.Join(fields, "\n"))
+		g.Printf("w := Wrap(inner, Hooks{})\n")
 		for i, iface := range ifaces {
 			g.Printf("if _, ok := w.(%s); ok != %t {\n", iface.Name, expected[i])
 			g.Printf("t.Error(\"unexpected interface\");\n")
 			g.Printf("}\n")
 		}
+		g.Printf(`
+if w, ok := w.(Unwrapper); ok {
+  if w.Unwrap() != inner {
+    t.Error("w.Unwrap() failed")
+  }
+} else {
+	t.Error("Unwrapper interface not implemented")
+}`)
 		g.Printf("}\n")
 		g.Printf("\n")
 	}
