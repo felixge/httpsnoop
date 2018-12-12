@@ -70,32 +70,6 @@ type Hooks struct {
 	}
 	g.Printf("}\n")
 
-	g.Printf(`
-type Unwrapper interface {
-	Unwrap() http.ResponseWriter
-}
-`)
-
-	combinations := 1 << uint(len(subIfaces))
-	for i := 0; i < combinations; i++ {
-		fields := make([]string, 0, len(subIfaces))
-		fields = append(fields, "http.ResponseWriter")
-		for j, iface := range subIfaces {
-			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
-			if ok {
-				fields = append(fields, iface.Name)
-			}
-		}
-		g.Printf("// combination %d/%d\n", i+1, combinations)
-		g.Printf("type s%d struct{\n%s\n}\n", i, strings.Join(fields, "\n"))
-		g.Printf(`
-// Unwrap returns the underlying http.ResponseWriter
-func (s s%d) Unwrap() http.ResponseWriter {
-	return s.ResponseWriter.(*rw).w
-}
-`, i)
-	}
-
 	// Wrap func
 	docList := make([]string, len(subIfaces))
 	for i, iface := range subIfaces {
@@ -120,26 +94,28 @@ func (s s%d) Unwrap() http.ResponseWriter {
 		g.Printf("_, i%d := w.(%s)\n", i, iface.Name)
 	}
 	g.Printf("switch {\n")
+	combinations := 1 << uint(len(subIfaces))
 	for i := 0; i < combinations; i++ {
 		conditions := make([]string, len(subIfaces))
-		lenFields := 1 // http.ResponseWriter
-		for j, _ := range subIfaces {
+		fields := make([]string, 0, len(subIfaces))
+		fields = append(fields, "http.ResponseWriter")
+		for j, iface := range subIfaces {
 			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
 			if !ok {
 				conditions[j] = "!"
 			} else {
-				lenFields++
+				fields = append(fields, iface.Name)
 			}
 			conditions[j] += fmt.Sprintf("i%d", j)
 		}
-		values := make([]string, lenFields)
-		for i := 0; i < lenFields; i++ {
+		values := make([]string, len(fields))
+		for i, _ := range fields {
 			values[i] = "rw"
 		}
-		// g.Printf("// combination %d/%d\n", i+1, combinations)
+		g.Printf("// combination %d/%d\n", i+1, combinations)
 		g.Printf("case %s:\n", strings.Join(conditions, "&&"))
-		valuesS := strings.Join(values, ",")
-		g.Printf("return s%d{%s}\n", i, valuesS)
+		fieldsS, valuesS := strings.Join(fields, "\n"), strings.Join(values, ",")
+		g.Printf("return struct{\n%s\n}{%s}\n", fieldsS, valuesS)
 	}
 	g.Printf("}\n")
 	g.Printf("panic(\"unreachable\")")
