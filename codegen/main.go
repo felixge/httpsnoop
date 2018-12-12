@@ -98,7 +98,7 @@ type Hooks struct {
 	for i := 0; i < combinations; i++ {
 		conditions := make([]string, len(subIfaces))
 		fields := make([]string, 0, len(subIfaces))
-		fields = append(fields, "http.ResponseWriter")
+		fields = append(fields, "Unwrapper", "http.ResponseWriter")
 		for j, iface := range subIfaces {
 			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
 			if !ok {
@@ -127,6 +127,11 @@ type rw struct {
 	w http.ResponseWriter
 	h Hooks
 }
+
+func (w *rw) Unwrap() http.ResponseWriter {
+	 return w.w
+}
+
 `)
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
@@ -144,6 +149,10 @@ type rw struct {
 		}
 	}
 	g.Printf(`
+type Unwrapper interface {
+	Unwrap() http.ResponseWriter
+}
+
 // Unwrap returns the underlying http.ResponseWriter from within zero or more
 // layers of httpsnoop wrappers.
 func Unwrap(w http.ResponseWriter) http.ResponseWriter {
