@@ -98,7 +98,7 @@ type Hooks struct {
 	for i := 0; i < combinations; i++ {
 		conditions := make([]string, len(subIfaces))
 		fields := make([]string, 0, len(subIfaces))
-		fields = append(fields, "http.ResponseWriter")
+		fields = append(fields, "Unwrapper", "http.ResponseWriter")
 		for j, iface := range subIfaces {
 			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
 			if !ok {
@@ -127,6 +127,11 @@ type rw struct {
 	w http.ResponseWriter
 	h Hooks
 }
+
+func (w *rw) Unwrap() http.ResponseWriter {
+	 return w.w
+}
+
 `)
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
@@ -143,6 +148,22 @@ type rw struct {
 			g.Printf("\n")
 		}
 	}
+	g.Printf(`
+type Unwrapper interface {
+	Unwrap() http.ResponseWriter
+}
+
+// Unwrap returns the underlying http.ResponseWriter from within zero or more
+// layers of httpsnoop wrappers.
+func Unwrap(w http.ResponseWriter) http.ResponseWriter {
+	if rw, ok := w.(Unwrapper); ok {
+		// recurse until rw.Unwrap() returns a non-Unwrapper
+		return Unwrap(rw.Unwrap())
+	} else {
+		return w
+	}
+}
+`)
 	return &g
 }
 
@@ -180,12 +201,21 @@ func (b *Build) Tests() *Generator {
 		g.Printf("// combination %d/%d\n", i+1, combinations)
 		g.Printf("{\n")
 		g.Printf(`t.Log("%s")`+"\n", strings.Join(fields, ", "))
-		g.Printf("w := Wrap(struct{\n%s\n}{}, Hooks{})\n", strings.Join(fields, "\n"))
+		g.Printf("inner := struct{\n%s\n}{}\n", strings.Join(fields, "\n"))
+		g.Printf("w := Wrap(inner, Hooks{})\n")
 		for i, iface := range ifaces {
 			g.Printf("if _, ok := w.(%s); ok != %t {\n", iface.Name, expected[i])
 			g.Printf("t.Error(\"unexpected interface\");\n")
 			g.Printf("}\n")
 		}
+		g.Printf(`
+if w, ok := w.(Unwrapper); ok {
+  if w.Unwrap() != inner {
+    t.Error("w.Unwrap() failed")
+  }
+} else {
+	t.Error("Unwrapper interface not implemented")
+}`)
 		g.Printf("}\n")
 		g.Printf("\n")
 	}
