@@ -1,6 +1,7 @@
 package httpsnoop
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -47,6 +48,14 @@ func TestCaptureMetrics(t *testing.T) {
 				w.WriteHeader(http.StatusNotFound)
 			}),
 			WantCode: http.StatusOK,
+		},
+		{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				rrf := w.(io.ReaderFrom)
+				rrf.ReadFrom(strings.NewReader("reader from is ok"))
+			}),
+			WantWritten: 17,
+			WantCode:    http.StatusOK,
 		},
 		{
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
