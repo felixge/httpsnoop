@@ -41,7 +41,8 @@ func CaptureMetricsFn(w http.ResponseWriter, fn func(http.ResponseWriter)) Metri
 }
 
 // CaptureMetrics wraps w and calls fn with the wrapped w and updates
-// Metrics m with the resulting metrics.
+// Metrics m with the resulting metrics. This is similar to CaptureMetricsFn,
+// but allows one to customize starting Metrics object.
 func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWriter)) {
 	var (
 		start         = time.Now()
