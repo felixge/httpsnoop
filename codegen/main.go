@@ -88,8 +88,13 @@ type Hooks struct {
 // The CaptureMetrics implementation serves as a working example for how the
 // hooks can be used.
 `, strings.Join(docList, "\n"))
-	g.Printf("func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {\n")
-	g.Printf("rw := &rw{w: w, h: hooks}\n")
+	g.Printf(`func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
+		return wrap(w, hooks, nil)
+	}
+	
+	`)
+	g.Printf("func wrap(w http.ResponseWriter, hooks Hooks, metrics *Metrics) http.ResponseWriter {\n")
+	g.Printf("rw := &rw{w: w, h: hooks, m: metrics}\n")
 	for i, iface := range subIfaces {
 		g.Printf("_, i%d := w.(%s)\n", i, iface.Name)
 	}
@@ -98,7 +103,7 @@ type Hooks struct {
 	for i := 0; i < combinations; i++ {
 		conditions := make([]string, len(subIfaces))
 		fields := make([]string, 0, len(subIfaces))
-		fields = append(fields, "Unwrapper", "http.ResponseWriter")
+		fields = append(fields, "Unwrapper", "Metricer", "http.ResponseWriter")
 		for j, iface := range subIfaces {
 			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
 			if !ok {
@@ -109,7 +114,7 @@ type Hooks struct {
 			conditions[j] += fmt.Sprintf("i%d", j)
 		}
 		values := make([]string, len(fields))
-		for i, _ := range fields {
+		for i := range fields {
 			values[i] = "rw"
 		}
 		g.Printf("// combination %d/%d\n", i+1, combinations)
@@ -119,20 +124,8 @@ type Hooks struct {
 	}
 	g.Printf("}\n")
 	g.Printf("panic(\"unreachable\")")
-	g.Printf("}\n")
+	g.Printf("}\n\n")
 
-	// rw struct
-	g.Printf(`
-type rw struct {
-	w http.ResponseWriter
-	h Hooks
-}
-
-func (w *rw) Unwrap() http.ResponseWriter {
-	 return w.w
-}
-
-`)
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
 			g.Printf("func (w *rw) %s(%s) (%s) {\n", fn.Name, fn.Args, fn.Returns)
@@ -148,22 +141,7 @@ func (w *rw) Unwrap() http.ResponseWriter {
 			g.Printf("\n")
 		}
 	}
-	g.Printf(`
-type Unwrapper interface {
-	Unwrap() http.ResponseWriter
-}
 
-// Unwrap returns the underlying http.ResponseWriter from within zero or more
-// layers of httpsnoop wrappers.
-func Unwrap(w http.ResponseWriter) http.ResponseWriter {
-	if rw, ok := w.(Unwrapper); ok {
-		// recurse until rw.Unwrap() returns a non-Unwrapper
-		return Unwrap(rw.Unwrap())
-	} else {
-		return w
-	}
-}
-`)
 	return &g
 }
 
