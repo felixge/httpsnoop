@@ -7,11 +7,15 @@ import (
 )
 
 func BenchmarkBaseline(b *testing.B) {
-	benchmark(b, false)
+	benchmark(b, 0)
 }
 
 func BenchmarkCaptureMetrics(b *testing.B) {
-	benchmark(b, true)
+	benchmark(b, 1)
+}
+
+func BenchmarkCaptureMetricsTwice(b *testing.B) {
+	benchmark(b, 2)
 }
 
 func BenchmarkWrap(b *testing.B) {
@@ -32,22 +36,23 @@ func BenchmarkWrap(b *testing.B) {
 	<-doneCh
 }
 
-func benchmark(b *testing.B, captureMetrics bool) {
-	b.StopTimer()
+func benchmark(b *testing.B, wrappings int) {
 	dummyH := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 	h := dummyH
-	if captureMetrics {
+	for x := 0; x < wrappings; x++ {
+		hCopy := h
 		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			CaptureMetrics(dummyH, w, r)
+			CaptureMetrics(hCopy, w, r)
 		})
 	}
-	s := httptest.NewServer(h)
-	defer s.Close()
-	b.StartTimer()
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	resp := httptest.NewRecorder() // ok to reuse; we're not writing anything to it
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		_, err := http.Get(s.URL)
-		if err != nil {
-			b.Fatal(err)
-		}
+		h.ServeHTTP(resp, req)
 	}
 }
