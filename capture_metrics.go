@@ -20,6 +20,9 @@ type Metrics struct {
 	// are not tracked. Therefor the number of Written bytes will usually match
 	// the size of the response body.
 	Written int64
+
+	// start is used internally to track the start time of the handler.
+	start time.Time
 }
 
 // CaptureMetrics wraps the given hnd, executes it with the given w and r, and
@@ -35,6 +38,12 @@ func CaptureMetrics(hnd http.Handler, w http.ResponseWriter, r *http.Request) Me
 // sugar on top of this func), but is a more usable interface if your
 // application doesn't use the Go http.Handler interface.
 func CaptureMetricsFn(w http.ResponseWriter, fn func(http.ResponseWriter)) Metrics {
+	if m, ok := w.(Metricer); ok && m.Metrics() != nil {
+		fn(w)
+		m := *m.Metrics()
+		m.Duration += time.Since(m.start)
+		return m
+	}
 	m := Metrics{Code: http.StatusOK}
 	m.CaptureMetrics(w, fn)
 	return m
@@ -44,8 +53,8 @@ func CaptureMetricsFn(w http.ResponseWriter, fn func(http.ResponseWriter)) Metri
 // Metrics m with the resulting metrics. This is similar to CaptureMetricsFn,
 // but allows one to customize starting Metrics object.
 func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWriter)) {
+	m.start = time.Now()
 	var (
-		start         = time.Now()
 		headerWritten bool
 		hooks         = Hooks{
 			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
@@ -81,6 +90,6 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 		}
 	)
 
-	fn(Wrap(w, hooks))
-	m.Duration += time.Since(start)
+	fn(wrap(w, hooks, m))
+	m.Duration += time.Since(m.start)
 }
