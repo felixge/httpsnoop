@@ -2,7 +2,6 @@ package httpsnoop
 
 import (
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +15,7 @@ func TestCaptureMetrics(t *testing.T) {
 	// Some of the edge cases tested below cause the net/http pkg to log some
 	// messages that add a lot of noise to the `go test -v` output, so we discard
 	// the log here.
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	defer log.SetOutput(os.Stderr)
 
 	tests := []struct {
