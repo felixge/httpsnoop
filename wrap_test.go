@@ -3,7 +3,6 @@ package httpsnoop
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -108,7 +107,10 @@ func TestWrap_integration(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer res.Body.Close()
-			gotBody, err := ioutil.ReadAll(res.Body)
+			gotBody, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if res.StatusCode != test.WantCode {
 				t.Errorf("got=%d want=%d", res.StatusCode, test.WantCode)
 			} else if !bytes.Equal(gotBody, test.WantBody) {

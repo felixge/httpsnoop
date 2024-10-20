@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -44,6 +43,7 @@ func (b *Build) Implementation() *Generator {
 	g.Printf(`"io"` + "\n")
 	g.Printf(`"net"` + "\n")
 	g.Printf(`"bufio"` + "\n")
+	g.Printf(`"time"` + "\n")
 	g.Printf(")\n")
 	g.Printf("\n")
 
@@ -109,7 +109,7 @@ type Hooks struct {
 			conditions[j] += fmt.Sprintf("i%d", j)
 		}
 		values := make([]string, len(fields))
-		for i, _ := range fields {
+		for i := range fields {
 			values[i] = "rw"
 		}
 		g.Printf("// combination %d/%d\n", i+1, combinations)
@@ -275,11 +275,10 @@ func (g *Generator) WriteFile(name string) error {
 	src, err := g.Format()
 	if err != nil {
 		return fmt.Errorf("format: %s: %s:\n\n%s\n", name, err, g.Bytes())
-	} else if err := ioutil.WriteFile(name, src, 0644); err != nil {
+	} else if err := os.WriteFile(name, src, 0o644); err != nil {
 		return err
 	}
 	return nil
-
 }
 
 func (g *Generator) MustWriteFile(name string) {
@@ -328,6 +327,19 @@ func main() {
 			Name: "io.ReaderFrom",
 			Funcs: []*InterfaceFunc{
 				{"ReadFrom", FuncArgs{{"src", "io.Reader"}}, "int64, error"},
+			},
+		},
+		{
+			Name: "deadliner", // Introduced in Go 1.20.
+			Funcs: []*InterfaceFunc{
+				{"SetReadDeadline", FuncArgs{{"deadline", "time.Time"}}, "error"},
+				{"SetWriteDeadline", FuncArgs{{"deadline", "time.Time"}}, "error"},
+			},
+		},
+		{
+			Name: "fullDuplexEnabler", // Introduced in Go 1.21.
+			Funcs: []*InterfaceFunc{
+				{"EnableFullDuplex", nil, "error"},
 			},
 		},
 	}
