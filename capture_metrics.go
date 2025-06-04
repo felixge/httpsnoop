@@ -81,8 +81,11 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 		}
 	)
 
+	// defer to ensure duration is updated even if the handler panics
+	defer func() {
+		m.Duration += time.Since(start)
+	}()
 	fn(Wrap(w, hooks))
-	m.Duration += time.Since(start)
 }
 
 // deadliner defines two methods introduced in go 1.20. The standard library
