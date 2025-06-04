@@ -81,6 +81,7 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 		}
 	)
 
+	// defer to ensure duration is updated even if the handler panics
 	defer func() {
 		m.Duration += time.Since(start)
 	}()
