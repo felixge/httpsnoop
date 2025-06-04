@@ -19,6 +19,7 @@ func TestCaptureMetrics(t *testing.T) {
 	defer log.SetOutput(os.Stderr)
 
 	tests := []struct {
+		Name         string
 		Handler      http.Handler
 		WantDuration time.Duration
 		WantWritten  int64
@@ -26,10 +27,12 @@ func TestCaptureMetrics(t *testing.T) {
 		WantErr      string
 	}{
 		{
+			Name:     "simple",
 			Handler:  http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
 			WantCode: http.StatusOK,
 		},
 		{
+			Name: "headers and body",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				w.WriteHeader(http.StatusNotFound)
@@ -42,6 +45,7 @@ func TestCaptureMetrics(t *testing.T) {
 			WantDuration: 25 * time.Millisecond,
 		},
 		{
+			Name: "header after body",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte("foo"))
 				w.WriteHeader(http.StatusNotFound)
@@ -49,6 +53,7 @@ func TestCaptureMetrics(t *testing.T) {
 			WantCode: http.StatusOK,
 		},
 		{
+			Name: "reader",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				rrf := w.(io.ReaderFrom)
 				rrf.ReadFrom(strings.NewReader("reader from is ok"))
@@ -57,18 +62,39 @@ func TestCaptureMetrics(t *testing.T) {
 			WantCode:    http.StatusOK,
 		},
 		{
+			Name: "empty panic",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				panic("oh no")
 			}),
-			WantErr: "EOF",
+			WantCode:     http.StatusOK, // code is not written so is our default
+			WantDuration: 1,             // confirm non-zero
+			WantErr:      "EOF",
+		},
+		{
+			Name: "panic after partial response",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("failed to execute"))
+				panic("oh no")
+			}),
+			WantCode:     http.StatusInternalServerError,
+			WantDuration: 1, // confirm non-zero
+			WantWritten:  17,
+			WantErr:      "EOF",
 		},
 	}
 
 	for i, test := range tests {
-		func() {
+		t.Run(test.Name, func(t *testing.T) {
 			ch := make(chan Metrics, 1)
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ch <- CaptureMetrics(test.Handler, w, r)
+				m := Metrics{Code: http.StatusOK}
+				defer func() {
+					ch <- m
+				}()
+				m.CaptureMetrics(w, func(ww http.ResponseWriter) {
+					test.Handler.ServeHTTP(ww, r)
+				})
 			})
 			s := httptest.NewServer(h)
 			defer s.Close()
@@ -76,10 +102,9 @@ func TestCaptureMetrics(t *testing.T) {
 			if !errContains(err, test.WantErr) {
 				t.Errorf("test %d: got=%s want=%s", i, err, test.WantErr)
 			}
-			if err != nil {
-				return
+			if res != nil && res.Body != nil {
+				defer res.Body.Close()
 			}
-			defer res.Body.Close()
 			m := <-ch
 			if m.Code != test.WantCode {
 				t.Errorf("test %d: got=%d want=%d", i, m.Code, test.WantCode)
@@ -88,7 +113,7 @@ func TestCaptureMetrics(t *testing.T) {
 			} else if m.Written < test.WantWritten {
 				t.Errorf("test %d: got=%d want=%d", i, m.Written, test.WantWritten)
 			}
-		}()
+		})
 	}
 }
 
