@@ -102,9 +102,9 @@ func TestCaptureMetrics(t *testing.T) {
 			if !errContains(err, test.WantErr) {
 				t.Errorf("test %d: got=%s want=%s", i, err, test.WantErr)
 			}
-			if res != nil && res.Body != nil {
+			if err == nil {
 				defer res.Body.Close()
-			}
+ 			}
 			m := <-ch
 			if m.Code != test.WantCode {
 				t.Errorf("test %d: got=%d want=%d", i, m.Code, test.WantCode)
