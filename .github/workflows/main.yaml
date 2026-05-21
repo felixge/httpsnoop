@@ -5,9 +5,8 @@ jobs:
     strategy:
       matrix:
         go:
-          - 1.18.x
-          - 1.17.x
-          - 1.16.x
+          - 1.26.x
+          - 1.25.x
         os:
           - ubuntu-latest
     name: ${{ matrix.os }}/go${{ matrix.go }}
