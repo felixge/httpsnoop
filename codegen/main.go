@@ -95,9 +95,20 @@ type Hooks struct {
 // hooks can be used.
 `, strings.Join(docList, "\n"))
 	g.Printf("func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {\n")
-	g.Printf("rw := &rw{w: w, h: hooks}\n")
+	g.Printf("rw := &rw{w: w}\n")
+	// Precompute hook chains once per Wrap call.
+	for _, fn := range ifaces[0].Funcs {
+		g.Printf("if hooks.%s != nil {\n", fn.Name)
+		g.Printf("rw.%s = hooks.%s(w.%s)\n", fieldName(fn.Name), fn.Name, fn.Name)
+		g.Printf("}\n")
+	}
 	for i, iface := range subIfaces {
-		g.Printf("_, i%d := w.(%s)\n", i, iface.Name)
+		g.Printf("t%[1]d, i%[1]d := w.(%s)\n", i, iface.Name)
+		for _, fn := range iface.Funcs {
+			g.Printf("if i%d && hooks.%s != nil {\n", i, fn.Name)
+			g.Printf("rw.%s = hooks.%s(t%d.%s)\n", fieldName(fn.Name), fn.Name, i, fn.Name)
+			g.Printf("}\n")
+		}
 	}
 	g.Printf("switch {\n")
 	combinations := 1 << uint(len(subIfaces))
@@ -127,31 +138,42 @@ type Hooks struct {
 	g.Printf("panic(\"unreachable\")")
 	g.Printf("}\n")
 
-	// rw struct
-	g.Printf(`
-type rw struct {
-	w http.ResponseWriter
-	h Hooks
-}
-
-func (w *rw) Unwrap() http.ResponseWriter {
-	 return w.w
+	// rw struct: caches one wrapped function per intercepted method.
+	// nil means no hook is installed; methods fall through to a direct call.
+	g.Printf("type rw struct {\n")
+	g.Printf("w http.ResponseWriter\n")
+	for _, iface := range ifaces {
+		for _, fn := range iface.Funcs {
+			g.Printf("%s %s\n", fieldName(fn.Name), fn.Type())
+		}
+	}
+	g.Printf("}\n\n")
+	g.Printf(`func (w *rw) Unwrap() http.ResponseWriter {
+	return w.w
 }
 
 `)
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
 			g.Printf("func (w *rw) %s(%s) (%s) {\n", fn.Name, fn.Args, fn.Returns)
-			g.Printf("f := w.w.(%s).%s\n", iface.Name, fn.Name)
-			g.Printf("if w.h.%s != nil {\n", fn.Name)
-			g.Printf("f = w.h.%s(f)\n", fn.Name)
-			g.Printf("}\n")
+			g.Printf("if w.%s != nil {\n", fieldName(fn.Name))
 			if fn.Returns != "" {
-				g.Printf("return ")
+				g.Printf("return w.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
+			} else {
+				g.Printf("w.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
+				g.Printf("return\n")
 			}
-			g.Printf("f(%s)\n", fn.Args.Names())
 			g.Printf("}\n")
-			g.Printf("\n")
+			receiver := "w.w"
+			if iface.Name != "http.ResponseWriter" {
+				receiver = fmt.Sprintf("w.w.(%s)", iface.Name)
+			}
+			if fn.Returns != "" {
+				g.Printf("return %s.%s(%s)\n", receiver, fn.Name, fn.Args.Names())
+			} else {
+				g.Printf("%s.%s(%s)\n", receiver, fn.Name, fn.Args.Names())
+			}
+			g.Printf("}\n\n")
 		}
 	}
 	g.Printf(`
@@ -267,6 +289,13 @@ type FuncArg struct {
 
 func (fn *InterfaceFunc) Type() string {
 	return fn.Name + "Func"
+}
+
+func fieldName(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }
 
 type Generator struct {

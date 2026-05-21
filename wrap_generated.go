@@ -83,15 +83,51 @@ type Hooks struct {
 // The CaptureMetrics implementation serves as a working example for how the
 // hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
-	rw := &rw{w: w, h: hooks}
-	_, i0 := w.(http.Flusher)
-	_, i1 := w.(http.CloseNotifier)
-	_, i2 := w.(http.Hijacker)
-	_, i3 := w.(io.ReaderFrom)
-	_, i4 := w.(deadliner)
-	_, i5 := w.(fullDuplexEnabler)
-	_, i6 := w.(http.Pusher)
-	_, i7 := w.(io.StringWriter)
+	rw := &rw{w: w}
+	if hooks.Header != nil {
+		rw.header = hooks.Header(w.Header)
+	}
+	if hooks.WriteHeader != nil {
+		rw.writeHeader = hooks.WriteHeader(w.WriteHeader)
+	}
+	if hooks.Write != nil {
+		rw.write = hooks.Write(w.Write)
+	}
+	t0, i0 := w.(http.Flusher)
+	if i0 && hooks.Flush != nil {
+		rw.flush = hooks.Flush(t0.Flush)
+	}
+	t1, i1 := w.(http.CloseNotifier)
+	if i1 && hooks.CloseNotify != nil {
+		rw.closeNotify = hooks.CloseNotify(t1.CloseNotify)
+	}
+	t2, i2 := w.(http.Hijacker)
+	if i2 && hooks.Hijack != nil {
+		rw.hijack = hooks.Hijack(t2.Hijack)
+	}
+	t3, i3 := w.(io.ReaderFrom)
+	if i3 && hooks.ReadFrom != nil {
+		rw.readFrom = hooks.ReadFrom(t3.ReadFrom)
+	}
+	t4, i4 := w.(deadliner)
+	if i4 && hooks.SetReadDeadline != nil {
+		rw.setReadDeadline = hooks.SetReadDeadline(t4.SetReadDeadline)
+	}
+	if i4 && hooks.SetWriteDeadline != nil {
+		rw.setWriteDeadline = hooks.SetWriteDeadline(t4.SetWriteDeadline)
+	}
+	t5, i5 := w.(fullDuplexEnabler)
+	if i5 && hooks.EnableFullDuplex != nil {
+		rw.enableFullDuplex = hooks.EnableFullDuplex(t5.EnableFullDuplex)
+	}
+	t6, i6 := w.(http.Pusher)
+	if i6 && hooks.Push != nil {
+		rw.push = hooks.Push(t6.Push)
+	}
+	t7, i7 := w.(io.StringWriter)
+	if i7 && hooks.WriteString != nil {
+		rw.writeString = hooks.WriteString(t7.WriteString)
+	}
 	switch {
 	// combination 1/256
 	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
@@ -2658,8 +2694,19 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 }
 
 type rw struct {
-	w http.ResponseWriter
-	h Hooks
+	w                http.ResponseWriter
+	header           HeaderFunc
+	writeHeader      WriteHeaderFunc
+	write            WriteFunc
+	flush            FlushFunc
+	closeNotify      CloseNotifyFunc
+	hijack           HijackFunc
+	readFrom         ReadFromFunc
+	setReadDeadline  SetReadDeadlineFunc
+	setWriteDeadline SetWriteDeadlineFunc
+	enableFullDuplex EnableFullDuplexFunc
+	push             PushFunc
+	writeString      WriteStringFunc
 }
 
 func (w *rw) Unwrap() http.ResponseWriter {
@@ -2667,99 +2714,89 @@ func (w *rw) Unwrap() http.ResponseWriter {
 }
 
 func (w *rw) Header() http.Header {
-	f := w.w.(http.ResponseWriter).Header
-	if w.h.Header != nil {
-		f = w.h.Header(f)
+	if w.header != nil {
+		return w.header()
 	}
-	return f()
+	return w.w.Header()
 }
 
 func (w *rw) WriteHeader(code int) {
-	f := w.w.(http.ResponseWriter).WriteHeader
-	if w.h.WriteHeader != nil {
-		f = w.h.WriteHeader(f)
+	if w.writeHeader != nil {
+		w.writeHeader(code)
+		return
 	}
-	f(code)
+	w.w.WriteHeader(code)
 }
 
 func (w *rw) Write(b []byte) (int, error) {
-	f := w.w.(http.ResponseWriter).Write
-	if w.h.Write != nil {
-		f = w.h.Write(f)
+	if w.write != nil {
+		return w.write(b)
 	}
-	return f(b)
+	return w.w.Write(b)
 }
 
 func (w *rw) Flush() {
-	f := w.w.(http.Flusher).Flush
-	if w.h.Flush != nil {
-		f = w.h.Flush(f)
+	if w.flush != nil {
+		w.flush()
+		return
 	}
-	f()
+	w.w.(http.Flusher).Flush()
 }
 
 func (w *rw) CloseNotify() <-chan bool {
-	f := w.w.(http.CloseNotifier).CloseNotify
-	if w.h.CloseNotify != nil {
-		f = w.h.CloseNotify(f)
+	if w.closeNotify != nil {
+		return w.closeNotify()
 	}
-	return f()
+	return w.w.(http.CloseNotifier).CloseNotify()
 }
 
 func (w *rw) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	f := w.w.(http.Hijacker).Hijack
-	if w.h.Hijack != nil {
-		f = w.h.Hijack(f)
+	if w.hijack != nil {
+		return w.hijack()
 	}
-	return f()
+	return w.w.(http.Hijacker).Hijack()
 }
 
 func (w *rw) ReadFrom(src io.Reader) (int64, error) {
-	f := w.w.(io.ReaderFrom).ReadFrom
-	if w.h.ReadFrom != nil {
-		f = w.h.ReadFrom(f)
+	if w.readFrom != nil {
+		return w.readFrom(src)
 	}
-	return f(src)
+	return w.w.(io.ReaderFrom).ReadFrom(src)
 }
 
 func (w *rw) SetReadDeadline(deadline time.Time) error {
-	f := w.w.(deadliner).SetReadDeadline
-	if w.h.SetReadDeadline != nil {
-		f = w.h.SetReadDeadline(f)
+	if w.setReadDeadline != nil {
+		return w.setReadDeadline(deadline)
 	}
-	return f(deadline)
+	return w.w.(deadliner).SetReadDeadline(deadline)
 }
 
 func (w *rw) SetWriteDeadline(deadline time.Time) error {
-	f := w.w.(deadliner).SetWriteDeadline
-	if w.h.SetWriteDeadline != nil {
-		f = w.h.SetWriteDeadline(f)
+	if w.setWriteDeadline != nil {
+		return w.setWriteDeadline(deadline)
 	}
-	return f(deadline)
+	return w.w.(deadliner).SetWriteDeadline(deadline)
 }
 
 func (w *rw) EnableFullDuplex() error {
-	f := w.w.(fullDuplexEnabler).EnableFullDuplex
-	if w.h.EnableFullDuplex != nil {
-		f = w.h.EnableFullDuplex(f)
+	if w.enableFullDuplex != nil {
+		return w.enableFullDuplex()
 	}
-	return f()
+	return w.w.(fullDuplexEnabler).EnableFullDuplex()
 }
 
 func (w *rw) Push(target string, opts *http.PushOptions) error {
-	f := w.w.(http.Pusher).Push
-	if w.h.Push != nil {
-		f = w.h.Push(f)
+	if w.push != nil {
+		return w.push(target, opts)
 	}
-	return f(target, opts)
+	return w.w.(http.Pusher).Push(target, opts)
 }
 
 func (w *rw) WriteString(s string) (int, error) {
-	f := w.w.(io.StringWriter).WriteString
-	if w.h.WriteString != nil {
-		f = w.h.WriteString(f)
+	if w.writeString != nil {
+		return w.writeString(s)
 	}
-	return f(s)
+	return w.w.(io.StringWriter).WriteString(s)
 }
 
 type Unwrapper interface {
