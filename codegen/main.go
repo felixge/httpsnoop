@@ -274,7 +274,7 @@ type Generator struct {
 }
 
 func (g *Generator) Printf(s string, args ...interface{}) {
-	fmt.Fprintf(&g.buf, s, args...)
+	_, _ = fmt.Fprintf(&g.buf, s, args...)
 }
 
 func (g *Generator) WriteFile(name string) error {
@@ -374,6 +374,6 @@ func main() {
 }
 
 func fatalf(s string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, s+"\n", args...)
+	_, _ = fmt.Fprintf(os.Stderr, s+"\n", args...)
 	os.Exit(1)
 }
