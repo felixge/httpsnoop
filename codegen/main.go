@@ -343,6 +343,28 @@ func main() {
 			},
 		},
 	}
+	ifaces_gteq_1_8 := append(
+		ifaces,
+		&Interface{
+			Name: "http.Pusher",
+			Funcs: []*InterfaceFunc{
+				{"Push", FuncArgs{
+					{"target", "string"},
+					{"opts", "*http.PushOptions"},
+				}, "error"},
+			},
+		},
+	)
+
+	ifaces_gteq_1_12 := append(
+		ifaces_gteq_1_8,
+		&Interface{
+			Name: "io.StringWriter",
+			Funcs: []*InterfaceFunc{
+				{"WriteString", FuncArgs{{"s", "string"}}, "int, error"},
+			},
+		},
+	)
 	builds := []Build{
 		{
 			Suffix:     "lt_1.8",
@@ -350,17 +372,14 @@ func main() {
 			Interfaces: ifaces,
 		},
 		{
-			Suffix: "gteq_1.8",
-			Tags:   "go1.8",
-			Interfaces: append(ifaces, &Interface{
-				Name: "http.Pusher",
-				Funcs: []*InterfaceFunc{
-					{"Push", FuncArgs{
-						{"target", "string"},
-						{"opts", "*http.PushOptions"},
-					}, "error"},
-				},
-			}),
+			Suffix:     "gteq_1.8",
+			Tags:       "go1.8",
+			Interfaces: ifaces_gteq_1_8,
+		},
+		{
+			Suffix:     "lt_1.12",
+			Tags:       "!go1.12",
+			Interfaces: ifaces_gteq_1_12,
 		},
 	}
 	for _, build := range builds {
