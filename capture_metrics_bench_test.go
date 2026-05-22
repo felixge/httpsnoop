@@ -18,24 +18,6 @@ func BenchmarkCaptureMetricsTwice(b *testing.B) {
 	benchmark(b, 2)
 }
 
-func BenchmarkWrap(b *testing.B) {
-	b.StopTimer()
-	doneCh := make(chan struct{}, 1)
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b.StartTimer()
-		for i := 0; i < b.N; i++ {
-			Wrap(w, Hooks{})
-		}
-		doneCh <- struct{}{}
-	})
-	s := httptest.NewServer(h)
-	defer s.Close()
-	if _, err := http.Get(s.URL); err != nil {
-		b.Fatal(err)
-	}
-	<-doneCh
-}
-
 func benchmark(b *testing.B, wrappings int) {
 	dummyH := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 	h := dummyH
