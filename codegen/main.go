@@ -95,52 +95,40 @@ type Hooks struct {
 // hooks can be used.
 `, strings.Join(docList, "\n"))
 	g.Printf("func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {\n")
-	g.Printf("rw := &rw{w: w}\n")
+	g.Printf("state := &rwState{w: w}\n")
 	// Precompute hook chains once per Wrap call.
 	for _, fn := range ifaces[0].Funcs {
 		g.Printf("if hooks.%s != nil {\n", fn.Name)
-		g.Printf("rw.%s = hooks.%s(w.%s)\n", fieldName(fn.Name), fn.Name, fn.Name)
+		g.Printf("state.%s = hooks.%s(w.%s)\n", fieldName(fn.Name), fn.Name, fn.Name)
 		g.Printf("}\n")
 	}
 	for i, iface := range subIfaces {
 		g.Printf("t%[1]d, i%[1]d := w.(%s)\n", i, iface.Name)
 		for _, fn := range iface.Funcs {
 			g.Printf("if i%d && hooks.%s != nil {\n", i, fn.Name)
-			g.Printf("rw.%s = hooks.%s(t%d.%s)\n", fieldName(fn.Name), fn.Name, i, fn.Name)
+			g.Printf("state.%s = hooks.%s(t%d.%s)\n", fieldName(fn.Name), fn.Name, i, fn.Name)
 			g.Printf("}\n")
 		}
 	}
-	g.Printf("switch {\n")
+	// Build a uint8 combo index so the switch compiles to a jump table.
+	g.Printf("var combo uint8\n")
+	for i := range subIfaces {
+		bit := len(subIfaces) - i - 1
+		g.Printf("if i%d { combo |= 1<<%d }\n", i, bit)
+	}
+	g.Printf("switch combo {\n")
 	combinations := 1 << uint(len(subIfaces))
-	for i := 0; i < combinations; i++ {
-		conditions := make([]string, len(subIfaces))
-		fields := make([]string, 0, len(subIfaces))
-		fields = append(fields, "Unwrapper", "http.ResponseWriter")
-		for j, iface := range subIfaces {
-			ok := i&(1<<uint(len(subIfaces)-j-1)) > 0
-			if !ok {
-				conditions[j] = "!"
-			} else {
-				fields = append(fields, iface.Name)
-			}
-			conditions[j] += fmt.Sprintf("i%d", j)
-		}
-		values := make([]string, len(fields))
-		for i := range fields {
-			values[i] = "rw"
-		}
-		g.Printf("// combination %d/%d\n", i+1, combinations)
-		g.Printf("case %s:\n", strings.Join(conditions, "&&"))
-		fieldsS, valuesS := strings.Join(fields, "\n"), strings.Join(values, ",")
-		g.Printf("return struct{\n%s\n}{%s}\n", fieldsS, valuesS)
+	for c := 0; c < combinations; c++ {
+		g.Printf("case %d: return (*rw%d)(state)\n", c, c)
 	}
 	g.Printf("}\n")
 	g.Printf("panic(\"unreachable\")")
-	g.Printf("}\n")
+	g.Printf("}\n\n")
 
-	// rw struct: caches one wrapped function per intercepted method.
-	// nil means no hook is installed; methods fall through to a direct call.
-	g.Printf("type rw struct {\n")
+	// rwState holds the underlying writer plus the precomputed hooks.
+	// All variant types are type-definitions over rwState, so a single *rwState
+	// allocation can be reinterpreted as any variant via pointer conversion.
+	g.Printf("type rwState struct {\n")
 	g.Printf("w http.ResponseWriter\n")
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
@@ -148,25 +136,24 @@ type Hooks struct {
 		}
 	}
 	g.Printf("}\n\n")
-	g.Printf(`func (w *rw) Unwrap() http.ResponseWriter {
-	return w.w
-}
 
-`)
+	// do<Name> helpers on *rwState
+	// These actual dispatch logic, defined once and called by the variant types.
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
-			g.Printf("func (w *rw) %s(%s) (%s) {\n", fn.Name, fn.Args, fn.Returns)
-			g.Printf("if w.%s != nil {\n", fieldName(fn.Name))
+			g.Printf("func (r *rwState) do%s(%s) (%s) {\n", fn.Name, fn.Args, fn.Returns)
+			g.Printf("if r.%s != nil {\n", fieldName(fn.Name))
 			if fn.Returns != "" {
-				g.Printf("return w.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
+				g.Printf("return r.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
 			} else {
-				g.Printf("w.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
+				g.Printf("r.%s(%s)\n", fieldName(fn.Name), fn.Args.Names())
 				g.Printf("return\n")
 			}
 			g.Printf("}\n")
-			receiver := "w.w"
+
+			receiver := "r.w"
 			if iface.Name != "http.ResponseWriter" {
-				receiver = fmt.Sprintf("w.w.(%s)", iface.Name)
+				receiver = fmt.Sprintf("r.w.(%s)", iface.Name)
 			}
 			if fn.Returns != "" {
 				g.Printf("return %s.%s(%s)\n", receiver, fn.Name, fn.Args.Names())
@@ -175,6 +162,41 @@ type Hooks struct {
 			}
 			g.Printf("}\n\n")
 		}
+	}
+
+	// Variant types, each is a type with the same memory layout as rwState,
+	// but exposing exactly the method set required by its combination of interfaces.
+	// This allows (*rwN)(state) to be a zero-cost pointer conversion.
+	emitVariantMethod := func(c int, fn *InterfaceFunc) {
+		g.Printf("func (w *rw%d) %s(%s) (%s) {\n", c, fn.Name, fn.Args, fn.Returns)
+		if fn.Returns != "" {
+			g.Printf("return (*rwState)(w).do%s(%s)\n", fn.Name, fn.Args.Names())
+		} else {
+			g.Printf("(*rwState)(w).do%s(%s)\n", fn.Name, fn.Args.Names())
+		}
+		g.Printf("}\n")
+	}
+	for c := 0; c < combinations; c++ {
+		supported := []string{"http.ResponseWriter"}
+		for j, iface := range subIfaces {
+			if c&(1<<uint(len(subIfaces)-j-1)) > 0 {
+				supported = append(supported, iface.Name)
+			}
+		}
+		g.Printf("// combination %d/%d: %s\n", c+1, combinations, strings.Join(supported, ", "))
+		g.Printf("type rw%d rwState\n", c)
+		g.Printf("func (w *rw%d) Unwrap() http.ResponseWriter { return w.w }\n", c)
+		for _, fn := range ifaces[0].Funcs {
+			emitVariantMethod(c, fn)
+		}
+		for j, iface := range subIfaces {
+			if c&(1<<uint(len(subIfaces)-j-1)) > 0 {
+				for _, fn := range iface.Funcs {
+					emitVariantMethod(c, fn)
+				}
+			}
+		}
+		g.Printf("\n")
 	}
 	g.Printf(`
 type Unwrapper interface {
@@ -187,9 +209,8 @@ func Unwrap(w http.ResponseWriter) http.ResponseWriter {
 	if rw, ok := w.(Unwrapper); ok {
 		// recurse until rw.Unwrap() returns a non-Unwrapper
 		return Unwrap(rw.Unwrap())
-	} else {
-		return w
 	}
+	return w
 }
 `)
 	return &g

@@ -83,2617 +83,594 @@ type Hooks struct {
 // The CaptureMetrics implementation serves as a working example for how the
 // hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
-	rw := &rw{w: w}
+	state := &rwState{w: w}
 	if hooks.Header != nil {
-		rw.header = hooks.Header(w.Header)
+		state.header = hooks.Header(w.Header)
 	}
 	if hooks.WriteHeader != nil {
-		rw.writeHeader = hooks.WriteHeader(w.WriteHeader)
+		state.writeHeader = hooks.WriteHeader(w.WriteHeader)
 	}
 	if hooks.Write != nil {
-		rw.write = hooks.Write(w.Write)
+		state.write = hooks.Write(w.Write)
 	}
 	t0, i0 := w.(http.Flusher)
 	if i0 && hooks.Flush != nil {
-		rw.flush = hooks.Flush(t0.Flush)
+		state.flush = hooks.Flush(t0.Flush)
 	}
 	t1, i1 := w.(http.CloseNotifier)
 	if i1 && hooks.CloseNotify != nil {
-		rw.closeNotify = hooks.CloseNotify(t1.CloseNotify)
+		state.closeNotify = hooks.CloseNotify(t1.CloseNotify)
 	}
 	t2, i2 := w.(http.Hijacker)
 	if i2 && hooks.Hijack != nil {
-		rw.hijack = hooks.Hijack(t2.Hijack)
+		state.hijack = hooks.Hijack(t2.Hijack)
 	}
 	t3, i3 := w.(io.ReaderFrom)
 	if i3 && hooks.ReadFrom != nil {
-		rw.readFrom = hooks.ReadFrom(t3.ReadFrom)
+		state.readFrom = hooks.ReadFrom(t3.ReadFrom)
 	}
 	t4, i4 := w.(deadliner)
 	if i4 && hooks.SetReadDeadline != nil {
-		rw.setReadDeadline = hooks.SetReadDeadline(t4.SetReadDeadline)
+		state.setReadDeadline = hooks.SetReadDeadline(t4.SetReadDeadline)
 	}
 	if i4 && hooks.SetWriteDeadline != nil {
-		rw.setWriteDeadline = hooks.SetWriteDeadline(t4.SetWriteDeadline)
+		state.setWriteDeadline = hooks.SetWriteDeadline(t4.SetWriteDeadline)
 	}
 	t5, i5 := w.(fullDuplexEnabler)
 	if i5 && hooks.EnableFullDuplex != nil {
-		rw.enableFullDuplex = hooks.EnableFullDuplex(t5.EnableFullDuplex)
+		state.enableFullDuplex = hooks.EnableFullDuplex(t5.EnableFullDuplex)
 	}
 	t6, i6 := w.(http.Pusher)
 	if i6 && hooks.Push != nil {
-		rw.push = hooks.Push(t6.Push)
+		state.push = hooks.Push(t6.Push)
 	}
 	t7, i7 := w.(io.StringWriter)
 	if i7 && hooks.WriteString != nil {
-		rw.writeString = hooks.WriteString(t7.WriteString)
+		state.writeString = hooks.WriteString(t7.WriteString)
 	}
-	switch {
-	// combination 1/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-		}{rw, rw}
-	// combination 2/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.StringWriter
-		}{rw, rw, rw}
-	// combination 3/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Pusher
-		}{rw, rw, rw}
-	// combination 4/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 5/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			fullDuplexEnabler
-		}{rw, rw, rw}
-	// combination 6/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 7/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 8/256
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 9/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-		}{rw, rw, rw}
-	// combination 10/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 11/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 12/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 13/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw}
-	// combination 14/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 15/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 16/256
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 17/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-		}{rw, rw, rw}
-	// combination 18/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 19/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 20/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 21/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw}
-	// combination 22/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 23/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 24/256
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 25/256
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw}
-	// combination 26/256
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 27/256
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 28/256
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 29/256
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 30/256
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 31/256
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 32/256
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 33/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-		}{rw, rw, rw}
-	// combination 34/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 35/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 36/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 37/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			fullDuplexEnabler
-		}{rw, rw, rw, rw}
-	// combination 38/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 39/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 40/256
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 41/256
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-		}{rw, rw, rw, rw}
-	// combination 42/256
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 43/256
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 44/256
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 45/256
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 46/256
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 47/256
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 48/256
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 49/256
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-		}{rw, rw, rw, rw}
-	// combination 50/256
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 51/256
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 52/256
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 53/256
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 54/256
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 55/256
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 56/256
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 57/256
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 58/256
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 59/256
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 60/256
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 61/256
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 62/256
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 63/256
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 64/256
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 65/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-		}{rw, rw, rw}
-	// combination 66/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 67/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 68/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 69/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			fullDuplexEnabler
-		}{rw, rw, rw, rw}
-	// combination 70/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 71/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 72/256
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 73/256
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-		}{rw, rw, rw, rw}
-	// combination 74/256
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 75/256
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 76/256
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 77/256
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 78/256
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 79/256
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 80/256
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 81/256
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-		}{rw, rw, rw, rw}
-	// combination 82/256
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 83/256
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 84/256
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 85/256
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 86/256
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 87/256
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 88/256
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 89/256
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 90/256
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 91/256
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 92/256
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 93/256
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 94/256
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 95/256
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 96/256
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 97/256
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-		}{rw, rw, rw, rw}
-	// combination 98/256
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 99/256
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 100/256
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 101/256
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 102/256
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 103/256
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 104/256
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 105/256
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 106/256
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 107/256
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 108/256
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 109/256
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 110/256
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 111/256
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 112/256
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 113/256
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-		}{rw, rw, rw, rw, rw}
-	// combination 114/256
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 115/256
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 116/256
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 117/256
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 118/256
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 119/256
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 120/256
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 121/256
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 122/256
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 123/256
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 124/256
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 125/256
-	case !i0 && i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 126/256
-	case !i0 && i1 && i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 127/256
-	case !i0 && i1 && i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 128/256
-	case !i0 && i1 && i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 129/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-		}{rw, rw, rw}
-	// combination 130/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.StringWriter
-		}{rw, rw, rw, rw}
-	// combination 131/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Pusher
-		}{rw, rw, rw, rw}
-	// combination 132/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 133/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			fullDuplexEnabler
-		}{rw, rw, rw, rw}
-	// combination 134/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 135/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 136/256
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 137/256
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-		}{rw, rw, rw, rw}
-	// combination 138/256
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 139/256
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 140/256
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 141/256
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 142/256
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 143/256
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 144/256
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 145/256
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-		}{rw, rw, rw, rw}
-	// combination 146/256
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 147/256
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 148/256
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 149/256
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 150/256
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 151/256
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 152/256
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 153/256
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 154/256
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 155/256
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 156/256
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 157/256
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 158/256
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 159/256
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 160/256
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 161/256
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-		}{rw, rw, rw, rw}
-	// combination 162/256
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 163/256
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 164/256
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 165/256
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 166/256
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 167/256
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 168/256
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 169/256
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 170/256
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 171/256
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 172/256
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 173/256
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 174/256
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 175/256
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 176/256
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 177/256
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-		}{rw, rw, rw, rw, rw}
-	// combination 178/256
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 179/256
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 180/256
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 181/256
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 182/256
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 183/256
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 184/256
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 185/256
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 186/256
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 187/256
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 188/256
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 189/256
-	case i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 190/256
-	case i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 191/256
-	case i0 && !i1 && i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 192/256
-	case i0 && !i1 && i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 193/256
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-		}{rw, rw, rw, rw}
-	// combination 194/256
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.StringWriter
-		}{rw, rw, rw, rw, rw}
-	// combination 195/256
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Pusher
-		}{rw, rw, rw, rw, rw}
-	// combination 196/256
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 197/256
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw}
-	// combination 198/256
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 199/256
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 200/256
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 201/256
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-		}{rw, rw, rw, rw, rw}
-	// combination 202/256
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 203/256
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 204/256
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 205/256
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 206/256
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 207/256
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 208/256
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 209/256
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-		}{rw, rw, rw, rw, rw}
-	// combination 210/256
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 211/256
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 212/256
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 213/256
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 214/256
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 215/256
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 216/256
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 217/256
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 218/256
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 219/256
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 220/256
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 221/256
-	case i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 222/256
-	case i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 223/256
-	case i0 && i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 224/256
-	case i0 && i1 && !i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 225/256
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-		}{rw, rw, rw, rw, rw}
-	// combination 226/256
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 227/256
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 228/256
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 229/256
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 230/256
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 231/256
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 232/256
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 233/256
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 234/256
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 235/256
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 236/256
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 237/256
-	case i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 238/256
-	case i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 239/256
-	case i0 && i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 240/256
-	case i0 && i1 && i2 && !i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 241/256
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-		}{rw, rw, rw, rw, rw, rw}
-	// combination 242/256
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 243/256
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 244/256
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 245/256
-	case i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 246/256
-	case i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 247/256
-	case i0 && i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 248/256
-	case i0 && i1 && i2 && i3 && !i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 249/256
-	case i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 250/256
-	case i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 251/256
-	case i0 && i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 252/256
-	case i0 && i1 && i2 && i3 && i4 && !i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 253/256
-	case i0 && i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 254/256
-	case i0 && i1 && i2 && i3 && i4 && i5 && !i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 255/256
-	case i0 && i1 && i2 && i3 && i4 && i5 && i6 && !i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 256/256
-	case i0 && i1 && i2 && i3 && i4 && i5 && i6 && i7:
-		return struct {
-			Unwrapper
-			http.ResponseWriter
-			http.Flusher
-			http.CloseNotifier
-			http.Hijacker
-			io.ReaderFrom
-			deadliner
-			fullDuplexEnabler
-			http.Pusher
-			io.StringWriter
-		}{rw, rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	var combo uint8
+	if i0 {
+		combo |= 1 << 7
+	}
+	if i1 {
+		combo |= 1 << 6
+	}
+	if i2 {
+		combo |= 1 << 5
+	}
+	if i3 {
+		combo |= 1 << 4
+	}
+	if i4 {
+		combo |= 1 << 3
+	}
+	if i5 {
+		combo |= 1 << 2
+	}
+	if i6 {
+		combo |= 1 << 1
+	}
+	if i7 {
+		combo |= 1 << 0
+	}
+	switch combo {
+	case 0:
+		return (*rw0)(state)
+	case 1:
+		return (*rw1)(state)
+	case 2:
+		return (*rw2)(state)
+	case 3:
+		return (*rw3)(state)
+	case 4:
+		return (*rw4)(state)
+	case 5:
+		return (*rw5)(state)
+	case 6:
+		return (*rw6)(state)
+	case 7:
+		return (*rw7)(state)
+	case 8:
+		return (*rw8)(state)
+	case 9:
+		return (*rw9)(state)
+	case 10:
+		return (*rw10)(state)
+	case 11:
+		return (*rw11)(state)
+	case 12:
+		return (*rw12)(state)
+	case 13:
+		return (*rw13)(state)
+	case 14:
+		return (*rw14)(state)
+	case 15:
+		return (*rw15)(state)
+	case 16:
+		return (*rw16)(state)
+	case 17:
+		return (*rw17)(state)
+	case 18:
+		return (*rw18)(state)
+	case 19:
+		return (*rw19)(state)
+	case 20:
+		return (*rw20)(state)
+	case 21:
+		return (*rw21)(state)
+	case 22:
+		return (*rw22)(state)
+	case 23:
+		return (*rw23)(state)
+	case 24:
+		return (*rw24)(state)
+	case 25:
+		return (*rw25)(state)
+	case 26:
+		return (*rw26)(state)
+	case 27:
+		return (*rw27)(state)
+	case 28:
+		return (*rw28)(state)
+	case 29:
+		return (*rw29)(state)
+	case 30:
+		return (*rw30)(state)
+	case 31:
+		return (*rw31)(state)
+	case 32:
+		return (*rw32)(state)
+	case 33:
+		return (*rw33)(state)
+	case 34:
+		return (*rw34)(state)
+	case 35:
+		return (*rw35)(state)
+	case 36:
+		return (*rw36)(state)
+	case 37:
+		return (*rw37)(state)
+	case 38:
+		return (*rw38)(state)
+	case 39:
+		return (*rw39)(state)
+	case 40:
+		return (*rw40)(state)
+	case 41:
+		return (*rw41)(state)
+	case 42:
+		return (*rw42)(state)
+	case 43:
+		return (*rw43)(state)
+	case 44:
+		return (*rw44)(state)
+	case 45:
+		return (*rw45)(state)
+	case 46:
+		return (*rw46)(state)
+	case 47:
+		return (*rw47)(state)
+	case 48:
+		return (*rw48)(state)
+	case 49:
+		return (*rw49)(state)
+	case 50:
+		return (*rw50)(state)
+	case 51:
+		return (*rw51)(state)
+	case 52:
+		return (*rw52)(state)
+	case 53:
+		return (*rw53)(state)
+	case 54:
+		return (*rw54)(state)
+	case 55:
+		return (*rw55)(state)
+	case 56:
+		return (*rw56)(state)
+	case 57:
+		return (*rw57)(state)
+	case 58:
+		return (*rw58)(state)
+	case 59:
+		return (*rw59)(state)
+	case 60:
+		return (*rw60)(state)
+	case 61:
+		return (*rw61)(state)
+	case 62:
+		return (*rw62)(state)
+	case 63:
+		return (*rw63)(state)
+	case 64:
+		return (*rw64)(state)
+	case 65:
+		return (*rw65)(state)
+	case 66:
+		return (*rw66)(state)
+	case 67:
+		return (*rw67)(state)
+	case 68:
+		return (*rw68)(state)
+	case 69:
+		return (*rw69)(state)
+	case 70:
+		return (*rw70)(state)
+	case 71:
+		return (*rw71)(state)
+	case 72:
+		return (*rw72)(state)
+	case 73:
+		return (*rw73)(state)
+	case 74:
+		return (*rw74)(state)
+	case 75:
+		return (*rw75)(state)
+	case 76:
+		return (*rw76)(state)
+	case 77:
+		return (*rw77)(state)
+	case 78:
+		return (*rw78)(state)
+	case 79:
+		return (*rw79)(state)
+	case 80:
+		return (*rw80)(state)
+	case 81:
+		return (*rw81)(state)
+	case 82:
+		return (*rw82)(state)
+	case 83:
+		return (*rw83)(state)
+	case 84:
+		return (*rw84)(state)
+	case 85:
+		return (*rw85)(state)
+	case 86:
+		return (*rw86)(state)
+	case 87:
+		return (*rw87)(state)
+	case 88:
+		return (*rw88)(state)
+	case 89:
+		return (*rw89)(state)
+	case 90:
+		return (*rw90)(state)
+	case 91:
+		return (*rw91)(state)
+	case 92:
+		return (*rw92)(state)
+	case 93:
+		return (*rw93)(state)
+	case 94:
+		return (*rw94)(state)
+	case 95:
+		return (*rw95)(state)
+	case 96:
+		return (*rw96)(state)
+	case 97:
+		return (*rw97)(state)
+	case 98:
+		return (*rw98)(state)
+	case 99:
+		return (*rw99)(state)
+	case 100:
+		return (*rw100)(state)
+	case 101:
+		return (*rw101)(state)
+	case 102:
+		return (*rw102)(state)
+	case 103:
+		return (*rw103)(state)
+	case 104:
+		return (*rw104)(state)
+	case 105:
+		return (*rw105)(state)
+	case 106:
+		return (*rw106)(state)
+	case 107:
+		return (*rw107)(state)
+	case 108:
+		return (*rw108)(state)
+	case 109:
+		return (*rw109)(state)
+	case 110:
+		return (*rw110)(state)
+	case 111:
+		return (*rw111)(state)
+	case 112:
+		return (*rw112)(state)
+	case 113:
+		return (*rw113)(state)
+	case 114:
+		return (*rw114)(state)
+	case 115:
+		return (*rw115)(state)
+	case 116:
+		return (*rw116)(state)
+	case 117:
+		return (*rw117)(state)
+	case 118:
+		return (*rw118)(state)
+	case 119:
+		return (*rw119)(state)
+	case 120:
+		return (*rw120)(state)
+	case 121:
+		return (*rw121)(state)
+	case 122:
+		return (*rw122)(state)
+	case 123:
+		return (*rw123)(state)
+	case 124:
+		return (*rw124)(state)
+	case 125:
+		return (*rw125)(state)
+	case 126:
+		return (*rw126)(state)
+	case 127:
+		return (*rw127)(state)
+	case 128:
+		return (*rw128)(state)
+	case 129:
+		return (*rw129)(state)
+	case 130:
+		return (*rw130)(state)
+	case 131:
+		return (*rw131)(state)
+	case 132:
+		return (*rw132)(state)
+	case 133:
+		return (*rw133)(state)
+	case 134:
+		return (*rw134)(state)
+	case 135:
+		return (*rw135)(state)
+	case 136:
+		return (*rw136)(state)
+	case 137:
+		return (*rw137)(state)
+	case 138:
+		return (*rw138)(state)
+	case 139:
+		return (*rw139)(state)
+	case 140:
+		return (*rw140)(state)
+	case 141:
+		return (*rw141)(state)
+	case 142:
+		return (*rw142)(state)
+	case 143:
+		return (*rw143)(state)
+	case 144:
+		return (*rw144)(state)
+	case 145:
+		return (*rw145)(state)
+	case 146:
+		return (*rw146)(state)
+	case 147:
+		return (*rw147)(state)
+	case 148:
+		return (*rw148)(state)
+	case 149:
+		return (*rw149)(state)
+	case 150:
+		return (*rw150)(state)
+	case 151:
+		return (*rw151)(state)
+	case 152:
+		return (*rw152)(state)
+	case 153:
+		return (*rw153)(state)
+	case 154:
+		return (*rw154)(state)
+	case 155:
+		return (*rw155)(state)
+	case 156:
+		return (*rw156)(state)
+	case 157:
+		return (*rw157)(state)
+	case 158:
+		return (*rw158)(state)
+	case 159:
+		return (*rw159)(state)
+	case 160:
+		return (*rw160)(state)
+	case 161:
+		return (*rw161)(state)
+	case 162:
+		return (*rw162)(state)
+	case 163:
+		return (*rw163)(state)
+	case 164:
+		return (*rw164)(state)
+	case 165:
+		return (*rw165)(state)
+	case 166:
+		return (*rw166)(state)
+	case 167:
+		return (*rw167)(state)
+	case 168:
+		return (*rw168)(state)
+	case 169:
+		return (*rw169)(state)
+	case 170:
+		return (*rw170)(state)
+	case 171:
+		return (*rw171)(state)
+	case 172:
+		return (*rw172)(state)
+	case 173:
+		return (*rw173)(state)
+	case 174:
+		return (*rw174)(state)
+	case 175:
+		return (*rw175)(state)
+	case 176:
+		return (*rw176)(state)
+	case 177:
+		return (*rw177)(state)
+	case 178:
+		return (*rw178)(state)
+	case 179:
+		return (*rw179)(state)
+	case 180:
+		return (*rw180)(state)
+	case 181:
+		return (*rw181)(state)
+	case 182:
+		return (*rw182)(state)
+	case 183:
+		return (*rw183)(state)
+	case 184:
+		return (*rw184)(state)
+	case 185:
+		return (*rw185)(state)
+	case 186:
+		return (*rw186)(state)
+	case 187:
+		return (*rw187)(state)
+	case 188:
+		return (*rw188)(state)
+	case 189:
+		return (*rw189)(state)
+	case 190:
+		return (*rw190)(state)
+	case 191:
+		return (*rw191)(state)
+	case 192:
+		return (*rw192)(state)
+	case 193:
+		return (*rw193)(state)
+	case 194:
+		return (*rw194)(state)
+	case 195:
+		return (*rw195)(state)
+	case 196:
+		return (*rw196)(state)
+	case 197:
+		return (*rw197)(state)
+	case 198:
+		return (*rw198)(state)
+	case 199:
+		return (*rw199)(state)
+	case 200:
+		return (*rw200)(state)
+	case 201:
+		return (*rw201)(state)
+	case 202:
+		return (*rw202)(state)
+	case 203:
+		return (*rw203)(state)
+	case 204:
+		return (*rw204)(state)
+	case 205:
+		return (*rw205)(state)
+	case 206:
+		return (*rw206)(state)
+	case 207:
+		return (*rw207)(state)
+	case 208:
+		return (*rw208)(state)
+	case 209:
+		return (*rw209)(state)
+	case 210:
+		return (*rw210)(state)
+	case 211:
+		return (*rw211)(state)
+	case 212:
+		return (*rw212)(state)
+	case 213:
+		return (*rw213)(state)
+	case 214:
+		return (*rw214)(state)
+	case 215:
+		return (*rw215)(state)
+	case 216:
+		return (*rw216)(state)
+	case 217:
+		return (*rw217)(state)
+	case 218:
+		return (*rw218)(state)
+	case 219:
+		return (*rw219)(state)
+	case 220:
+		return (*rw220)(state)
+	case 221:
+		return (*rw221)(state)
+	case 222:
+		return (*rw222)(state)
+	case 223:
+		return (*rw223)(state)
+	case 224:
+		return (*rw224)(state)
+	case 225:
+		return (*rw225)(state)
+	case 226:
+		return (*rw226)(state)
+	case 227:
+		return (*rw227)(state)
+	case 228:
+		return (*rw228)(state)
+	case 229:
+		return (*rw229)(state)
+	case 230:
+		return (*rw230)(state)
+	case 231:
+		return (*rw231)(state)
+	case 232:
+		return (*rw232)(state)
+	case 233:
+		return (*rw233)(state)
+	case 234:
+		return (*rw234)(state)
+	case 235:
+		return (*rw235)(state)
+	case 236:
+		return (*rw236)(state)
+	case 237:
+		return (*rw237)(state)
+	case 238:
+		return (*rw238)(state)
+	case 239:
+		return (*rw239)(state)
+	case 240:
+		return (*rw240)(state)
+	case 241:
+		return (*rw241)(state)
+	case 242:
+		return (*rw242)(state)
+	case 243:
+		return (*rw243)(state)
+	case 244:
+		return (*rw244)(state)
+	case 245:
+		return (*rw245)(state)
+	case 246:
+		return (*rw246)(state)
+	case 247:
+		return (*rw247)(state)
+	case 248:
+		return (*rw248)(state)
+	case 249:
+		return (*rw249)(state)
+	case 250:
+		return (*rw250)(state)
+	case 251:
+		return (*rw251)(state)
+	case 252:
+		return (*rw252)(state)
+	case 253:
+		return (*rw253)(state)
+	case 254:
+		return (*rw254)(state)
+	case 255:
+		return (*rw255)(state)
 	}
 	panic("unreachable")
 }
 
-type rw struct {
+type rwState struct {
 	w                http.ResponseWriter
 	header           HeaderFunc
 	writeHeader      WriteHeaderFunc
@@ -2709,94 +686,7130 @@ type rw struct {
 	writeString      WriteStringFunc
 }
 
-func (w *rw) Unwrap() http.ResponseWriter {
-	return w.w
-}
-
-func (w *rw) Header() http.Header {
-	if w.header != nil {
-		return w.header()
+func (r *rwState) doHeader() http.Header {
+	if r.header != nil {
+		return r.header()
 	}
-	return w.w.Header()
+	return r.w.Header()
 }
 
-func (w *rw) WriteHeader(code int) {
-	if w.writeHeader != nil {
-		w.writeHeader(code)
+func (r *rwState) doWriteHeader(code int) {
+	if r.writeHeader != nil {
+		r.writeHeader(code)
 		return
 	}
-	w.w.WriteHeader(code)
+	r.w.WriteHeader(code)
 }
 
-func (w *rw) Write(b []byte) (int, error) {
-	if w.write != nil {
-		return w.write(b)
+func (r *rwState) doWrite(b []byte) (int, error) {
+	if r.write != nil {
+		return r.write(b)
 	}
-	return w.w.Write(b)
+	return r.w.Write(b)
 }
 
-func (w *rw) Flush() {
-	if w.flush != nil {
-		w.flush()
+func (r *rwState) doFlush() {
+	if r.flush != nil {
+		r.flush()
 		return
 	}
-	w.w.(http.Flusher).Flush()
+	r.w.(http.Flusher).Flush()
 }
 
-func (w *rw) CloseNotify() <-chan bool {
-	if w.closeNotify != nil {
-		return w.closeNotify()
+func (r *rwState) doCloseNotify() <-chan bool {
+	if r.closeNotify != nil {
+		return r.closeNotify()
 	}
-	return w.w.(http.CloseNotifier).CloseNotify()
+	return r.w.(http.CloseNotifier).CloseNotify()
 }
 
-func (w *rw) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	if w.hijack != nil {
-		return w.hijack()
+func (r *rwState) doHijack() (net.Conn, *bufio.ReadWriter, error) {
+	if r.hijack != nil {
+		return r.hijack()
 	}
-	return w.w.(http.Hijacker).Hijack()
+	return r.w.(http.Hijacker).Hijack()
 }
 
-func (w *rw) ReadFrom(src io.Reader) (int64, error) {
-	if w.readFrom != nil {
-		return w.readFrom(src)
+func (r *rwState) doReadFrom(src io.Reader) (int64, error) {
+	if r.readFrom != nil {
+		return r.readFrom(src)
 	}
-	return w.w.(io.ReaderFrom).ReadFrom(src)
+	return r.w.(io.ReaderFrom).ReadFrom(src)
 }
 
-func (w *rw) SetReadDeadline(deadline time.Time) error {
-	if w.setReadDeadline != nil {
-		return w.setReadDeadline(deadline)
+func (r *rwState) doSetReadDeadline(deadline time.Time) error {
+	if r.setReadDeadline != nil {
+		return r.setReadDeadline(deadline)
 	}
-	return w.w.(deadliner).SetReadDeadline(deadline)
+	return r.w.(deadliner).SetReadDeadline(deadline)
 }
 
-func (w *rw) SetWriteDeadline(deadline time.Time) error {
-	if w.setWriteDeadline != nil {
-		return w.setWriteDeadline(deadline)
+func (r *rwState) doSetWriteDeadline(deadline time.Time) error {
+	if r.setWriteDeadline != nil {
+		return r.setWriteDeadline(deadline)
 	}
-	return w.w.(deadliner).SetWriteDeadline(deadline)
+	return r.w.(deadliner).SetWriteDeadline(deadline)
 }
 
-func (w *rw) EnableFullDuplex() error {
-	if w.enableFullDuplex != nil {
-		return w.enableFullDuplex()
+func (r *rwState) doEnableFullDuplex() error {
+	if r.enableFullDuplex != nil {
+		return r.enableFullDuplex()
 	}
-	return w.w.(fullDuplexEnabler).EnableFullDuplex()
+	return r.w.(fullDuplexEnabler).EnableFullDuplex()
 }
 
-func (w *rw) Push(target string, opts *http.PushOptions) error {
-	if w.push != nil {
-		return w.push(target, opts)
+func (r *rwState) doPush(target string, opts *http.PushOptions) error {
+	if r.push != nil {
+		return r.push(target, opts)
 	}
-	return w.w.(http.Pusher).Push(target, opts)
+	return r.w.(http.Pusher).Push(target, opts)
 }
 
-func (w *rw) WriteString(s string) (int, error) {
-	if w.writeString != nil {
-		return w.writeString(s)
+func (r *rwState) doWriteString(s string) (int, error) {
+	if r.writeString != nil {
+		return r.writeString(s)
 	}
-	return w.w.(io.StringWriter).WriteString(s)
+	return r.w.(io.StringWriter).WriteString(s)
+}
+
+// combination 1/256: http.ResponseWriter
+type rw0 rwState
+
+func (w *rw0) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw0) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw0) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw0) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+
+// combination 2/256: http.ResponseWriter, io.StringWriter
+type rw1 rwState
+
+func (w *rw1) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw1) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw1) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw1) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw1) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 3/256: http.ResponseWriter, http.Pusher
+type rw2 rwState
+
+func (w *rw2) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw2) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw2) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw2) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw2) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 4/256: http.ResponseWriter, http.Pusher, io.StringWriter
+type rw3 rwState
+
+func (w *rw3) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw3) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw3) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw3) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw3) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw3) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 5/256: http.ResponseWriter, fullDuplexEnabler
+type rw4 rwState
+
+func (w *rw4) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw4) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw4) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw4) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw4) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 6/256: http.ResponseWriter, fullDuplexEnabler, io.StringWriter
+type rw5 rwState
+
+func (w *rw5) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw5) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw5) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw5) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw5) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw5) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 7/256: http.ResponseWriter, fullDuplexEnabler, http.Pusher
+type rw6 rwState
+
+func (w *rw6) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw6) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw6) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw6) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw6) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw6) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 8/256: http.ResponseWriter, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw7 rwState
+
+func (w *rw7) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw7) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw7) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw7) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw7) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw7) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw7) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 9/256: http.ResponseWriter, deadliner
+type rw8 rwState
+
+func (w *rw8) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw8) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw8) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw8) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw8) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw8) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 10/256: http.ResponseWriter, deadliner, io.StringWriter
+type rw9 rwState
+
+func (w *rw9) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw9) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw9) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw9) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw9) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw9) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw9) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 11/256: http.ResponseWriter, deadliner, http.Pusher
+type rw10 rwState
+
+func (w *rw10) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw10) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw10) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw10) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw10) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw10) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw10) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 12/256: http.ResponseWriter, deadliner, http.Pusher, io.StringWriter
+type rw11 rwState
+
+func (w *rw11) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw11) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw11) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw11) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw11) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw11) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw11) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw11) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 13/256: http.ResponseWriter, deadliner, fullDuplexEnabler
+type rw12 rwState
+
+func (w *rw12) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw12) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw12) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw12) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw12) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw12) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw12) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 14/256: http.ResponseWriter, deadliner, fullDuplexEnabler, io.StringWriter
+type rw13 rwState
+
+func (w *rw13) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw13) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw13) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw13) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw13) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw13) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw13) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw13) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 15/256: http.ResponseWriter, deadliner, fullDuplexEnabler, http.Pusher
+type rw14 rwState
+
+func (w *rw14) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw14) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw14) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw14) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw14) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw14) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw14) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw14) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 16/256: http.ResponseWriter, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw15 rwState
+
+func (w *rw15) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw15) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw15) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw15) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw15) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw15) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw15) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw15) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw15) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 17/256: http.ResponseWriter, io.ReaderFrom
+type rw16 rwState
+
+func (w *rw16) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw16) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw16) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw16) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw16) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 18/256: http.ResponseWriter, io.ReaderFrom, io.StringWriter
+type rw17 rwState
+
+func (w *rw17) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw17) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw17) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw17) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw17) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw17) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 19/256: http.ResponseWriter, io.ReaderFrom, http.Pusher
+type rw18 rwState
+
+func (w *rw18) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw18) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw18) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw18) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw18) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw18) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 20/256: http.ResponseWriter, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw19 rwState
+
+func (w *rw19) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw19) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw19) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw19) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw19) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw19) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw19) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 21/256: http.ResponseWriter, io.ReaderFrom, fullDuplexEnabler
+type rw20 rwState
+
+func (w *rw20) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw20) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw20) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw20) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw20) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw20) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 22/256: http.ResponseWriter, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw21 rwState
+
+func (w *rw21) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw21) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw21) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw21) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw21) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw21) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw21) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 23/256: http.ResponseWriter, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw22 rwState
+
+func (w *rw22) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw22) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw22) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw22) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw22) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw22) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw22) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 24/256: http.ResponseWriter, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw23 rwState
+
+func (w *rw23) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw23) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw23) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw23) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw23) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw23) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw23) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw23) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 25/256: http.ResponseWriter, io.ReaderFrom, deadliner
+type rw24 rwState
+
+func (w *rw24) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw24) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw24) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw24) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw24) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw24) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw24) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 26/256: http.ResponseWriter, io.ReaderFrom, deadliner, io.StringWriter
+type rw25 rwState
+
+func (w *rw25) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw25) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw25) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw25) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw25) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw25) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw25) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw25) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 27/256: http.ResponseWriter, io.ReaderFrom, deadliner, http.Pusher
+type rw26 rwState
+
+func (w *rw26) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw26) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw26) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw26) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw26) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw26) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw26) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw26) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 28/256: http.ResponseWriter, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw27 rwState
+
+func (w *rw27) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw27) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw27) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw27) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw27) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw27) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw27) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw27) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw27) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 29/256: http.ResponseWriter, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw28 rwState
+
+func (w *rw28) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw28) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw28) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw28) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw28) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw28) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw28) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw28) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 30/256: http.ResponseWriter, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw29 rwState
+
+func (w *rw29) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw29) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw29) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw29) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw29) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw29) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw29) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw29) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw29) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 31/256: http.ResponseWriter, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw30 rwState
+
+func (w *rw30) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw30) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw30) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw30) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw30) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw30) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw30) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw30) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw30) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 32/256: http.ResponseWriter, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw31 rwState
+
+func (w *rw31) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw31) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw31) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw31) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw31) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw31) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw31) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw31) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw31) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw31) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 33/256: http.ResponseWriter, http.Hijacker
+type rw32 rwState
+
+func (w *rw32) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw32) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw32) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw32) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw32) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+
+// combination 34/256: http.ResponseWriter, http.Hijacker, io.StringWriter
+type rw33 rwState
+
+func (w *rw33) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw33) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw33) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw33) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw33) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw33) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 35/256: http.ResponseWriter, http.Hijacker, http.Pusher
+type rw34 rwState
+
+func (w *rw34) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw34) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw34) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw34) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw34) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw34) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 36/256: http.ResponseWriter, http.Hijacker, http.Pusher, io.StringWriter
+type rw35 rwState
+
+func (w *rw35) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw35) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw35) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw35) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw35) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw35) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw35) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 37/256: http.ResponseWriter, http.Hijacker, fullDuplexEnabler
+type rw36 rwState
+
+func (w *rw36) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw36) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw36) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw36) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw36) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw36) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 38/256: http.ResponseWriter, http.Hijacker, fullDuplexEnabler, io.StringWriter
+type rw37 rwState
+
+func (w *rw37) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw37) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw37) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw37) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw37) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw37) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw37) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 39/256: http.ResponseWriter, http.Hijacker, fullDuplexEnabler, http.Pusher
+type rw38 rwState
+
+func (w *rw38) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw38) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw38) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw38) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw38) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw38) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw38) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 40/256: http.ResponseWriter, http.Hijacker, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw39 rwState
+
+func (w *rw39) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw39) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw39) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw39) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw39) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw39) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw39) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw39) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 41/256: http.ResponseWriter, http.Hijacker, deadliner
+type rw40 rwState
+
+func (w *rw40) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw40) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw40) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw40) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw40) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw40) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw40) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 42/256: http.ResponseWriter, http.Hijacker, deadliner, io.StringWriter
+type rw41 rwState
+
+func (w *rw41) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw41) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw41) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw41) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw41) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw41) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw41) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw41) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 43/256: http.ResponseWriter, http.Hijacker, deadliner, http.Pusher
+type rw42 rwState
+
+func (w *rw42) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw42) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw42) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw42) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw42) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw42) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw42) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw42) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 44/256: http.ResponseWriter, http.Hijacker, deadliner, http.Pusher, io.StringWriter
+type rw43 rwState
+
+func (w *rw43) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw43) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw43) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw43) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw43) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw43) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw43) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw43) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw43) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 45/256: http.ResponseWriter, http.Hijacker, deadliner, fullDuplexEnabler
+type rw44 rwState
+
+func (w *rw44) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw44) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw44) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw44) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw44) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw44) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw44) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw44) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 46/256: http.ResponseWriter, http.Hijacker, deadliner, fullDuplexEnabler, io.StringWriter
+type rw45 rwState
+
+func (w *rw45) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw45) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw45) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw45) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw45) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw45) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw45) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw45) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw45) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 47/256: http.ResponseWriter, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher
+type rw46 rwState
+
+func (w *rw46) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw46) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw46) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw46) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw46) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw46) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw46) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw46) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw46) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 48/256: http.ResponseWriter, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw47 rwState
+
+func (w *rw47) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw47) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw47) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw47) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw47) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw47) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw47) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw47) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw47) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw47) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 49/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom
+type rw48 rwState
+
+func (w *rw48) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw48) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw48) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw48) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw48) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw48) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 50/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, io.StringWriter
+type rw49 rwState
+
+func (w *rw49) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw49) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw49) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw49) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw49) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw49) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw49) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 51/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, http.Pusher
+type rw50 rwState
+
+func (w *rw50) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw50) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw50) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw50) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw50) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw50) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw50) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 52/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw51 rwState
+
+func (w *rw51) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw51) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw51) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw51) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw51) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw51) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw51) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw51) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 53/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, fullDuplexEnabler
+type rw52 rwState
+
+func (w *rw52) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw52) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw52) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw52) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw52) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw52) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw52) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 54/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw53 rwState
+
+func (w *rw53) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw53) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw53) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw53) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw53) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw53) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw53) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw53) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 55/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw54 rwState
+
+func (w *rw54) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw54) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw54) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw54) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw54) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw54) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw54) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw54) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 56/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw55 rwState
+
+func (w *rw55) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw55) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw55) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw55) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw55) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw55) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw55) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw55) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw55) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 57/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner
+type rw56 rwState
+
+func (w *rw56) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw56) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw56) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw56) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw56) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw56) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw56) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw56) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 58/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, io.StringWriter
+type rw57 rwState
+
+func (w *rw57) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw57) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw57) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw57) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw57) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw57) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw57) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw57) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw57) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 59/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher
+type rw58 rwState
+
+func (w *rw58) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw58) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw58) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw58) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw58) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw58) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw58) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw58) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw58) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 60/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw59 rwState
+
+func (w *rw59) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw59) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw59) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw59) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw59) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw59) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw59) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw59) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw59) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw59) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 61/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw60 rwState
+
+func (w *rw60) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw60) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw60) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw60) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw60) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw60) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw60) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw60) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw60) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 62/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw61 rwState
+
+func (w *rw61) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw61) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw61) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw61) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw61) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw61) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw61) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw61) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw61) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw61) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 63/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw62 rwState
+
+func (w *rw62) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw62) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw62) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw62) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw62) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw62) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw62) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw62) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw62) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw62) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 64/256: http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw63 rwState
+
+func (w *rw63) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw63) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw63) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw63) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw63) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw63) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw63) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw63) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw63) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw63) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw63) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 65/256: http.ResponseWriter, http.CloseNotifier
+type rw64 rwState
+
+func (w *rw64) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw64) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw64) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw64) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw64) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+
+// combination 66/256: http.ResponseWriter, http.CloseNotifier, io.StringWriter
+type rw65 rwState
+
+func (w *rw65) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw65) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw65) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw65) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw65) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw65) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 67/256: http.ResponseWriter, http.CloseNotifier, http.Pusher
+type rw66 rwState
+
+func (w *rw66) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw66) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw66) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw66) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw66) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw66) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 68/256: http.ResponseWriter, http.CloseNotifier, http.Pusher, io.StringWriter
+type rw67 rwState
+
+func (w *rw67) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw67) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw67) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw67) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw67) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw67) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw67) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 69/256: http.ResponseWriter, http.CloseNotifier, fullDuplexEnabler
+type rw68 rwState
+
+func (w *rw68) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw68) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw68) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw68) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw68) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw68) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 70/256: http.ResponseWriter, http.CloseNotifier, fullDuplexEnabler, io.StringWriter
+type rw69 rwState
+
+func (w *rw69) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw69) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw69) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw69) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw69) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw69) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw69) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 71/256: http.ResponseWriter, http.CloseNotifier, fullDuplexEnabler, http.Pusher
+type rw70 rwState
+
+func (w *rw70) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw70) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw70) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw70) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw70) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw70) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw70) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 72/256: http.ResponseWriter, http.CloseNotifier, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw71 rwState
+
+func (w *rw71) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw71) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw71) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw71) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw71) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw71) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw71) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw71) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 73/256: http.ResponseWriter, http.CloseNotifier, deadliner
+type rw72 rwState
+
+func (w *rw72) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw72) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw72) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw72) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw72) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw72) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw72) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 74/256: http.ResponseWriter, http.CloseNotifier, deadliner, io.StringWriter
+type rw73 rwState
+
+func (w *rw73) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw73) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw73) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw73) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw73) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw73) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw73) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw73) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 75/256: http.ResponseWriter, http.CloseNotifier, deadliner, http.Pusher
+type rw74 rwState
+
+func (w *rw74) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw74) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw74) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw74) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw74) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw74) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw74) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw74) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 76/256: http.ResponseWriter, http.CloseNotifier, deadliner, http.Pusher, io.StringWriter
+type rw75 rwState
+
+func (w *rw75) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw75) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw75) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw75) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw75) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw75) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw75) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw75) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw75) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 77/256: http.ResponseWriter, http.CloseNotifier, deadliner, fullDuplexEnabler
+type rw76 rwState
+
+func (w *rw76) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw76) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw76) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw76) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw76) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw76) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw76) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw76) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 78/256: http.ResponseWriter, http.CloseNotifier, deadliner, fullDuplexEnabler, io.StringWriter
+type rw77 rwState
+
+func (w *rw77) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw77) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw77) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw77) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw77) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw77) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw77) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw77) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw77) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 79/256: http.ResponseWriter, http.CloseNotifier, deadliner, fullDuplexEnabler, http.Pusher
+type rw78 rwState
+
+func (w *rw78) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw78) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw78) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw78) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw78) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw78) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw78) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw78) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw78) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 80/256: http.ResponseWriter, http.CloseNotifier, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw79 rwState
+
+func (w *rw79) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw79) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw79) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw79) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw79) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw79) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw79) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw79) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw79) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw79) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 81/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom
+type rw80 rwState
+
+func (w *rw80) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw80) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw80) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw80) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw80) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw80) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 82/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, io.StringWriter
+type rw81 rwState
+
+func (w *rw81) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw81) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw81) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw81) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw81) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw81) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw81) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 83/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, http.Pusher
+type rw82 rwState
+
+func (w *rw82) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw82) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw82) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw82) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw82) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw82) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw82) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 84/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw83 rwState
+
+func (w *rw83) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw83) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw83) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw83) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw83) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw83) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw83) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw83) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 85/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler
+type rw84 rwState
+
+func (w *rw84) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw84) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw84) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw84) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw84) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw84) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw84) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 86/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw85 rwState
+
+func (w *rw85) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw85) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw85) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw85) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw85) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw85) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw85) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw85) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 87/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw86 rwState
+
+func (w *rw86) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw86) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw86) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw86) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw86) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw86) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw86) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw86) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 88/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw87 rwState
+
+func (w *rw87) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw87) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw87) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw87) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw87) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw87) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw87) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw87) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw87) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 89/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner
+type rw88 rwState
+
+func (w *rw88) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw88) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw88) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw88) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw88) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw88) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw88) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw88) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 90/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, io.StringWriter
+type rw89 rwState
+
+func (w *rw89) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw89) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw89) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw89) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw89) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw89) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw89) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw89) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw89) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 91/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, http.Pusher
+type rw90 rwState
+
+func (w *rw90) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw90) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw90) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw90) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw90) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw90) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw90) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw90) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw90) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 92/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw91 rwState
+
+func (w *rw91) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw91) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw91) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw91) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw91) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw91) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw91) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw91) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw91) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw91) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 93/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw92 rwState
+
+func (w *rw92) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw92) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw92) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw92) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw92) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw92) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw92) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw92) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw92) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 94/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw93 rwState
+
+func (w *rw93) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw93) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw93) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw93) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw93) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw93) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw93) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw93) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw93) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw93) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 95/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw94 rwState
+
+func (w *rw94) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw94) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw94) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw94) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw94) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw94) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw94) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw94) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw94) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw94) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 96/256: http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw95 rwState
+
+func (w *rw95) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw95) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw95) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw95) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw95) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw95) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw95) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw95) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw95) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw95) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw95) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 97/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker
+type rw96 rwState
+
+func (w *rw96) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw96) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw96) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw96) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw96) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw96) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+
+// combination 98/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.StringWriter
+type rw97 rwState
+
+func (w *rw97) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw97) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw97) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw97) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw97) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw97) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw97) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 99/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, http.Pusher
+type rw98 rwState
+
+func (w *rw98) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw98) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw98) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw98) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw98) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw98) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw98) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 100/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, http.Pusher, io.StringWriter
+type rw99 rwState
+
+func (w *rw99) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw99) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw99) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw99) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw99) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw99) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw99) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw99) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 101/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, fullDuplexEnabler
+type rw100 rwState
+
+func (w *rw100) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw100) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw100) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw100) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw100) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw100) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw100) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 102/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, io.StringWriter
+type rw101 rwState
+
+func (w *rw101) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw101) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw101) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw101) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw101) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw101) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw101) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw101) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 103/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, http.Pusher
+type rw102 rwState
+
+func (w *rw102) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw102) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw102) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw102) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw102) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw102) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw102) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw102) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 104/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw103 rwState
+
+func (w *rw103) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw103) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw103) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw103) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw103) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw103) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw103) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw103) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw103) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 105/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner
+type rw104 rwState
+
+func (w *rw104) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw104) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw104) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw104) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw104) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw104) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw104) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw104) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 106/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, io.StringWriter
+type rw105 rwState
+
+func (w *rw105) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw105) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw105) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw105) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw105) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw105) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw105) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw105) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw105) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 107/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, http.Pusher
+type rw106 rwState
+
+func (w *rw106) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw106) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw106) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw106) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw106) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw106) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw106) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw106) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw106) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 108/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, http.Pusher, io.StringWriter
+type rw107 rwState
+
+func (w *rw107) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw107) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw107) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw107) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw107) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw107) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw107) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw107) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw107) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw107) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 109/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler
+type rw108 rwState
+
+func (w *rw108) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw108) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw108) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw108) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw108) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw108) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw108) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw108) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw108) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 110/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, io.StringWriter
+type rw109 rwState
+
+func (w *rw109) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw109) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw109) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw109) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw109) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw109) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw109) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw109) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw109) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw109) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 111/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher
+type rw110 rwState
+
+func (w *rw110) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw110) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw110) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw110) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw110) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw110) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw110) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw110) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw110) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw110) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 112/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw111 rwState
+
+func (w *rw111) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw111) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw111) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw111) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw111) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw111) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw111) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw111) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw111) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw111) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw111) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 113/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom
+type rw112 rwState
+
+func (w *rw112) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw112) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw112) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw112) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw112) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw112) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw112) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 114/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, io.StringWriter
+type rw113 rwState
+
+func (w *rw113) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw113) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw113) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw113) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw113) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw113) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw113) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw113) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 115/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, http.Pusher
+type rw114 rwState
+
+func (w *rw114) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw114) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw114) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw114) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw114) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw114) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw114) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw114) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 116/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw115 rwState
+
+func (w *rw115) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw115) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw115) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw115) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw115) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw115) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw115) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw115) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw115) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 117/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler
+type rw116 rwState
+
+func (w *rw116) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw116) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw116) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw116) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw116) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw116) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw116) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw116) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 118/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw117 rwState
+
+func (w *rw117) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw117) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw117) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw117) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw117) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw117) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw117) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw117) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw117) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 119/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw118 rwState
+
+func (w *rw118) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw118) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw118) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw118) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw118) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw118) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw118) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw118) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw118) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 120/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw119 rwState
+
+func (w *rw119) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw119) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw119) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw119) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw119) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw119) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw119) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw119) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw119) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw119) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 121/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner
+type rw120 rwState
+
+func (w *rw120) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw120) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw120) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw120) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw120) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw120) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw120) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw120) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw120) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 122/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, io.StringWriter
+type rw121 rwState
+
+func (w *rw121) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw121) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw121) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw121) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw121) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw121) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw121) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw121) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw121) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw121) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 123/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher
+type rw122 rwState
+
+func (w *rw122) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw122) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw122) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw122) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw122) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw122) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw122) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw122) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw122) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw122) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 124/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw123 rwState
+
+func (w *rw123) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw123) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw123) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw123) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw123) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw123) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw123) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw123) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw123) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw123) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw123) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 125/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw124 rwState
+
+func (w *rw124) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw124) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw124) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw124) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw124) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw124) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw124) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw124) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw124) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw124) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 126/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw125 rwState
+
+func (w *rw125) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw125) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw125) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw125) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw125) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw125) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw125) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw125) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw125) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw125) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw125) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 127/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw126 rwState
+
+func (w *rw126) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw126) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw126) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw126) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw126) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw126) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw126) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw126) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw126) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw126) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw126) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 128/256: http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw127 rwState
+
+func (w *rw127) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw127) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw127) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw127) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw127) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw127) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw127) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw127) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw127) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw127) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw127) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw127) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 129/256: http.ResponseWriter, http.Flusher
+type rw128 rwState
+
+func (w *rw128) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw128) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw128) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw128) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw128) Flush() {
+	(*rwState)(w).doFlush()
+}
+
+// combination 130/256: http.ResponseWriter, http.Flusher, io.StringWriter
+type rw129 rwState
+
+func (w *rw129) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw129) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw129) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw129) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw129) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw129) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 131/256: http.ResponseWriter, http.Flusher, http.Pusher
+type rw130 rwState
+
+func (w *rw130) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw130) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw130) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw130) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw130) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw130) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 132/256: http.ResponseWriter, http.Flusher, http.Pusher, io.StringWriter
+type rw131 rwState
+
+func (w *rw131) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw131) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw131) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw131) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw131) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw131) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw131) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 133/256: http.ResponseWriter, http.Flusher, fullDuplexEnabler
+type rw132 rwState
+
+func (w *rw132) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw132) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw132) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw132) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw132) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw132) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 134/256: http.ResponseWriter, http.Flusher, fullDuplexEnabler, io.StringWriter
+type rw133 rwState
+
+func (w *rw133) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw133) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw133) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw133) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw133) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw133) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw133) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 135/256: http.ResponseWriter, http.Flusher, fullDuplexEnabler, http.Pusher
+type rw134 rwState
+
+func (w *rw134) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw134) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw134) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw134) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw134) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw134) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw134) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 136/256: http.ResponseWriter, http.Flusher, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw135 rwState
+
+func (w *rw135) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw135) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw135) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw135) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw135) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw135) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw135) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw135) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 137/256: http.ResponseWriter, http.Flusher, deadliner
+type rw136 rwState
+
+func (w *rw136) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw136) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw136) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw136) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw136) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw136) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw136) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 138/256: http.ResponseWriter, http.Flusher, deadliner, io.StringWriter
+type rw137 rwState
+
+func (w *rw137) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw137) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw137) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw137) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw137) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw137) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw137) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw137) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 139/256: http.ResponseWriter, http.Flusher, deadliner, http.Pusher
+type rw138 rwState
+
+func (w *rw138) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw138) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw138) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw138) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw138) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw138) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw138) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw138) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 140/256: http.ResponseWriter, http.Flusher, deadliner, http.Pusher, io.StringWriter
+type rw139 rwState
+
+func (w *rw139) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw139) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw139) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw139) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw139) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw139) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw139) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw139) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw139) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 141/256: http.ResponseWriter, http.Flusher, deadliner, fullDuplexEnabler
+type rw140 rwState
+
+func (w *rw140) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw140) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw140) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw140) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw140) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw140) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw140) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw140) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 142/256: http.ResponseWriter, http.Flusher, deadliner, fullDuplexEnabler, io.StringWriter
+type rw141 rwState
+
+func (w *rw141) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw141) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw141) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw141) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw141) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw141) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw141) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw141) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw141) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 143/256: http.ResponseWriter, http.Flusher, deadliner, fullDuplexEnabler, http.Pusher
+type rw142 rwState
+
+func (w *rw142) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw142) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw142) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw142) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw142) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw142) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw142) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw142) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw142) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 144/256: http.ResponseWriter, http.Flusher, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw143 rwState
+
+func (w *rw143) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw143) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw143) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw143) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw143) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw143) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw143) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw143) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw143) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw143) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 145/256: http.ResponseWriter, http.Flusher, io.ReaderFrom
+type rw144 rwState
+
+func (w *rw144) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw144) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw144) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw144) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw144) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw144) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 146/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, io.StringWriter
+type rw145 rwState
+
+func (w *rw145) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw145) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw145) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw145) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw145) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw145) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw145) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 147/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, http.Pusher
+type rw146 rwState
+
+func (w *rw146) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw146) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw146) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw146) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw146) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw146) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw146) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 148/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw147 rwState
+
+func (w *rw147) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw147) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw147) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw147) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw147) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw147) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw147) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw147) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 149/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, fullDuplexEnabler
+type rw148 rwState
+
+func (w *rw148) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw148) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw148) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw148) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw148) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw148) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw148) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 150/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw149 rwState
+
+func (w *rw149) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw149) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw149) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw149) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw149) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw149) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw149) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw149) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 151/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw150 rwState
+
+func (w *rw150) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw150) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw150) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw150) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw150) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw150) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw150) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw150) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 152/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw151 rwState
+
+func (w *rw151) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw151) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw151) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw151) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw151) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw151) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw151) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw151) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw151) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 153/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner
+type rw152 rwState
+
+func (w *rw152) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw152) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw152) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw152) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw152) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw152) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw152) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw152) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 154/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, io.StringWriter
+type rw153 rwState
+
+func (w *rw153) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw153) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw153) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw153) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw153) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw153) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw153) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw153) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw153) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 155/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, http.Pusher
+type rw154 rwState
+
+func (w *rw154) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw154) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw154) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw154) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw154) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw154) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw154) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw154) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw154) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 156/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw155 rwState
+
+func (w *rw155) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw155) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw155) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw155) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw155) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw155) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw155) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw155) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw155) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw155) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 157/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw156 rwState
+
+func (w *rw156) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw156) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw156) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw156) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw156) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw156) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw156) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw156) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw156) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 158/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw157 rwState
+
+func (w *rw157) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw157) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw157) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw157) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw157) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw157) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw157) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw157) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw157) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw157) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 159/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw158 rwState
+
+func (w *rw158) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw158) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw158) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw158) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw158) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw158) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw158) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw158) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw158) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw158) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 160/256: http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw159 rwState
+
+func (w *rw159) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw159) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw159) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw159) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw159) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw159) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw159) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw159) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw159) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw159) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw159) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 161/256: http.ResponseWriter, http.Flusher, http.Hijacker
+type rw160 rwState
+
+func (w *rw160) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw160) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw160) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw160) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw160) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw160) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+
+// combination 162/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.StringWriter
+type rw161 rwState
+
+func (w *rw161) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw161) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw161) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw161) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw161) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw161) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw161) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 163/256: http.ResponseWriter, http.Flusher, http.Hijacker, http.Pusher
+type rw162 rwState
+
+func (w *rw162) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw162) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw162) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw162) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw162) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw162) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw162) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 164/256: http.ResponseWriter, http.Flusher, http.Hijacker, http.Pusher, io.StringWriter
+type rw163 rwState
+
+func (w *rw163) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw163) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw163) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw163) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw163) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw163) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw163) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw163) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 165/256: http.ResponseWriter, http.Flusher, http.Hijacker, fullDuplexEnabler
+type rw164 rwState
+
+func (w *rw164) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw164) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw164) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw164) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw164) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw164) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw164) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 166/256: http.ResponseWriter, http.Flusher, http.Hijacker, fullDuplexEnabler, io.StringWriter
+type rw165 rwState
+
+func (w *rw165) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw165) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw165) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw165) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw165) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw165) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw165) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw165) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 167/256: http.ResponseWriter, http.Flusher, http.Hijacker, fullDuplexEnabler, http.Pusher
+type rw166 rwState
+
+func (w *rw166) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw166) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw166) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw166) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw166) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw166) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw166) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw166) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 168/256: http.ResponseWriter, http.Flusher, http.Hijacker, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw167 rwState
+
+func (w *rw167) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw167) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw167) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw167) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw167) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw167) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw167) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw167) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw167) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 169/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner
+type rw168 rwState
+
+func (w *rw168) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw168) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw168) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw168) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw168) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw168) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw168) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw168) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 170/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, io.StringWriter
+type rw169 rwState
+
+func (w *rw169) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw169) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw169) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw169) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw169) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw169) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw169) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw169) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw169) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 171/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, http.Pusher
+type rw170 rwState
+
+func (w *rw170) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw170) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw170) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw170) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw170) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw170) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw170) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw170) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw170) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 172/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, http.Pusher, io.StringWriter
+type rw171 rwState
+
+func (w *rw171) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw171) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw171) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw171) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw171) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw171) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw171) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw171) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw171) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw171) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 173/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, fullDuplexEnabler
+type rw172 rwState
+
+func (w *rw172) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw172) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw172) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw172) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw172) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw172) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw172) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw172) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw172) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 174/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, fullDuplexEnabler, io.StringWriter
+type rw173 rwState
+
+func (w *rw173) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw173) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw173) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw173) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw173) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw173) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw173) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw173) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw173) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw173) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 175/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher
+type rw174 rwState
+
+func (w *rw174) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw174) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw174) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw174) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw174) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw174) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw174) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw174) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw174) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw174) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 176/256: http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw175 rwState
+
+func (w *rw175) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw175) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw175) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw175) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw175) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw175) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw175) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw175) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw175) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw175) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw175) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 177/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom
+type rw176 rwState
+
+func (w *rw176) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw176) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw176) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw176) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw176) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw176) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw176) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 178/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, io.StringWriter
+type rw177 rwState
+
+func (w *rw177) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw177) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw177) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw177) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw177) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw177) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw177) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw177) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 179/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, http.Pusher
+type rw178 rwState
+
+func (w *rw178) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw178) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw178) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw178) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw178) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw178) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw178) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw178) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 180/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw179 rwState
+
+func (w *rw179) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw179) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw179) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw179) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw179) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw179) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw179) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw179) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw179) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 181/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, fullDuplexEnabler
+type rw180 rwState
+
+func (w *rw180) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw180) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw180) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw180) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw180) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw180) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw180) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw180) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 182/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw181 rwState
+
+func (w *rw181) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw181) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw181) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw181) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw181) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw181) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw181) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw181) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw181) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 183/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw182 rwState
+
+func (w *rw182) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw182) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw182) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw182) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw182) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw182) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw182) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw182) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw182) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 184/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw183 rwState
+
+func (w *rw183) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw183) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw183) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw183) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw183) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw183) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw183) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw183) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw183) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw183) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 185/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner
+type rw184 rwState
+
+func (w *rw184) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw184) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw184) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw184) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw184) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw184) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw184) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw184) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw184) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 186/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, io.StringWriter
+type rw185 rwState
+
+func (w *rw185) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw185) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw185) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw185) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw185) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw185) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw185) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw185) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw185) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw185) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 187/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher
+type rw186 rwState
+
+func (w *rw186) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw186) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw186) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw186) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw186) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw186) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw186) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw186) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw186) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw186) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 188/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw187 rwState
+
+func (w *rw187) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw187) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw187) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw187) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw187) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw187) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw187) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw187) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw187) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw187) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw187) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 189/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw188 rwState
+
+func (w *rw188) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw188) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw188) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw188) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw188) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw188) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw188) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw188) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw188) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw188) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 190/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw189 rwState
+
+func (w *rw189) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw189) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw189) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw189) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw189) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw189) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw189) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw189) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw189) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw189) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw189) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 191/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw190 rwState
+
+func (w *rw190) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw190) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw190) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw190) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw190) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw190) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw190) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw190) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw190) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw190) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw190) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 192/256: http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw191 rwState
+
+func (w *rw191) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw191) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw191) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw191) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw191) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw191) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw191) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw191) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw191) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw191) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw191) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw191) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 193/256: http.ResponseWriter, http.Flusher, http.CloseNotifier
+type rw192 rwState
+
+func (w *rw192) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw192) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw192) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw192) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw192) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw192) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+
+// combination 194/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.StringWriter
+type rw193 rwState
+
+func (w *rw193) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw193) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw193) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw193) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw193) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw193) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw193) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 195/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Pusher
+type rw194 rwState
+
+func (w *rw194) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw194) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw194) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw194) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw194) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw194) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw194) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 196/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Pusher, io.StringWriter
+type rw195 rwState
+
+func (w *rw195) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw195) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw195) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw195) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw195) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw195) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw195) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw195) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 197/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, fullDuplexEnabler
+type rw196 rwState
+
+func (w *rw196) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw196) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw196) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw196) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw196) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw196) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw196) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 198/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, fullDuplexEnabler, io.StringWriter
+type rw197 rwState
+
+func (w *rw197) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw197) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw197) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw197) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw197) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw197) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw197) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw197) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 199/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, fullDuplexEnabler, http.Pusher
+type rw198 rwState
+
+func (w *rw198) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw198) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw198) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw198) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw198) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw198) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw198) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw198) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 200/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw199 rwState
+
+func (w *rw199) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw199) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw199) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw199) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw199) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw199) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw199) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw199) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw199) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 201/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner
+type rw200 rwState
+
+func (w *rw200) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw200) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw200) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw200) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw200) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw200) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw200) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw200) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 202/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, io.StringWriter
+type rw201 rwState
+
+func (w *rw201) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw201) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw201) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw201) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw201) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw201) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw201) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw201) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw201) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 203/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, http.Pusher
+type rw202 rwState
+
+func (w *rw202) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw202) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw202) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw202) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw202) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw202) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw202) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw202) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw202) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 204/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, http.Pusher, io.StringWriter
+type rw203 rwState
+
+func (w *rw203) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw203) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw203) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw203) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw203) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw203) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw203) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw203) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw203) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw203) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 205/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, fullDuplexEnabler
+type rw204 rwState
+
+func (w *rw204) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw204) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw204) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw204) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw204) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw204) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw204) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw204) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw204) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 206/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, fullDuplexEnabler, io.StringWriter
+type rw205 rwState
+
+func (w *rw205) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw205) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw205) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw205) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw205) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw205) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw205) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw205) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw205) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw205) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 207/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, fullDuplexEnabler, http.Pusher
+type rw206 rwState
+
+func (w *rw206) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw206) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw206) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw206) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw206) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw206) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw206) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw206) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw206) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw206) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 208/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw207 rwState
+
+func (w *rw207) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw207) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw207) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw207) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw207) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw207) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw207) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw207) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw207) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw207) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw207) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 209/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom
+type rw208 rwState
+
+func (w *rw208) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw208) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw208) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw208) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw208) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw208) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw208) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 210/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, io.StringWriter
+type rw209 rwState
+
+func (w *rw209) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw209) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw209) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw209) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw209) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw209) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw209) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw209) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 211/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, http.Pusher
+type rw210 rwState
+
+func (w *rw210) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw210) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw210) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw210) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw210) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw210) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw210) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw210) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 212/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw211 rwState
+
+func (w *rw211) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw211) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw211) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw211) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw211) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw211) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw211) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw211) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw211) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 213/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler
+type rw212 rwState
+
+func (w *rw212) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw212) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw212) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw212) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw212) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw212) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw212) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw212) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 214/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw213 rwState
+
+func (w *rw213) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw213) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw213) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw213) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw213) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw213) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw213) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw213) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw213) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 215/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw214 rwState
+
+func (w *rw214) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw214) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw214) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw214) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw214) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw214) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw214) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw214) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw214) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 216/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw215 rwState
+
+func (w *rw215) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw215) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw215) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw215) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw215) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw215) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw215) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw215) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw215) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw215) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 217/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner
+type rw216 rwState
+
+func (w *rw216) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw216) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw216) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw216) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw216) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw216) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw216) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw216) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw216) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 218/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, io.StringWriter
+type rw217 rwState
+
+func (w *rw217) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw217) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw217) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw217) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw217) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw217) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw217) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw217) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw217) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw217) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 219/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, http.Pusher
+type rw218 rwState
+
+func (w *rw218) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw218) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw218) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw218) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw218) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw218) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw218) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw218) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw218) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw218) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 220/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw219 rwState
+
+func (w *rw219) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw219) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw219) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw219) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw219) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw219) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw219) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw219) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw219) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw219) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw219) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 221/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw220 rwState
+
+func (w *rw220) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw220) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw220) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw220) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw220) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw220) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw220) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw220) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw220) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw220) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 222/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw221 rwState
+
+func (w *rw221) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw221) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw221) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw221) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw221) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw221) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw221) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw221) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw221) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw221) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw221) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 223/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw222 rwState
+
+func (w *rw222) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw222) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw222) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw222) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw222) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw222) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw222) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw222) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw222) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw222) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw222) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 224/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw223 rwState
+
+func (w *rw223) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw223) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw223) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw223) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw223) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw223) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw223) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw223) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw223) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw223) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw223) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw223) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 225/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker
+type rw224 rwState
+
+func (w *rw224) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw224) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw224) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw224) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw224) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw224) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw224) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+
+// combination 226/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.StringWriter
+type rw225 rwState
+
+func (w *rw225) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw225) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw225) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw225) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw225) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw225) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw225) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw225) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 227/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, http.Pusher
+type rw226 rwState
+
+func (w *rw226) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw226) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw226) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw226) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw226) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw226) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw226) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw226) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 228/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, http.Pusher, io.StringWriter
+type rw227 rwState
+
+func (w *rw227) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw227) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw227) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw227) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw227) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw227) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw227) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw227) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw227) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 229/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, fullDuplexEnabler
+type rw228 rwState
+
+func (w *rw228) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw228) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw228) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw228) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw228) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw228) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw228) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw228) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 230/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, io.StringWriter
+type rw229 rwState
+
+func (w *rw229) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw229) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw229) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw229) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw229) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw229) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw229) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw229) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw229) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 231/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, http.Pusher
+type rw230 rwState
+
+func (w *rw230) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw230) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw230) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw230) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw230) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw230) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw230) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw230) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw230) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 232/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw231 rwState
+
+func (w *rw231) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw231) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw231) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw231) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw231) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw231) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw231) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw231) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw231) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw231) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 233/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner
+type rw232 rwState
+
+func (w *rw232) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw232) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw232) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw232) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw232) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw232) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw232) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw232) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw232) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 234/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, io.StringWriter
+type rw233 rwState
+
+func (w *rw233) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw233) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw233) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw233) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw233) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw233) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw233) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw233) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw233) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw233) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 235/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, http.Pusher
+type rw234 rwState
+
+func (w *rw234) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw234) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw234) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw234) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw234) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw234) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw234) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw234) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw234) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw234) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 236/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, http.Pusher, io.StringWriter
+type rw235 rwState
+
+func (w *rw235) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw235) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw235) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw235) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw235) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw235) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw235) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw235) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw235) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw235) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw235) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 237/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler
+type rw236 rwState
+
+func (w *rw236) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw236) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw236) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw236) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw236) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw236) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw236) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw236) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw236) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw236) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 238/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, io.StringWriter
+type rw237 rwState
+
+func (w *rw237) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw237) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw237) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw237) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw237) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw237) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw237) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw237) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw237) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw237) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw237) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 239/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher
+type rw238 rwState
+
+func (w *rw238) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw238) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw238) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw238) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw238) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw238) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw238) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw238) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw238) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw238) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw238) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 240/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw239 rwState
+
+func (w *rw239) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw239) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw239) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw239) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw239) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw239) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw239) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw239) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw239) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw239) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw239) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw239) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 241/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom
+type rw240 rwState
+
+func (w *rw240) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw240) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw240) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw240) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw240) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw240) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw240) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw240) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+
+// combination 242/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, io.StringWriter
+type rw241 rwState
+
+func (w *rw241) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw241) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw241) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw241) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw241) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw241) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw241) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw241) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw241) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 243/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, http.Pusher
+type rw242 rwState
+
+func (w *rw242) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw242) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw242) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw242) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw242) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw242) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw242) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw242) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw242) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 244/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, http.Pusher, io.StringWriter
+type rw243 rwState
+
+func (w *rw243) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw243) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw243) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw243) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw243) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw243) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw243) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw243) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw243) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw243) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 245/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler
+type rw244 rwState
+
+func (w *rw244) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw244) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw244) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw244) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw244) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw244) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw244) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw244) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw244) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 246/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, io.StringWriter
+type rw245 rwState
+
+func (w *rw245) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw245) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw245) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw245) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw245) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw245) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw245) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw245) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw245) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw245) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 247/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher
+type rw246 rwState
+
+func (w *rw246) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw246) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw246) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw246) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw246) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw246) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw246) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw246) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw246) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw246) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 248/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw247 rwState
+
+func (w *rw247) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw247) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw247) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw247) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw247) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw247) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw247) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw247) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw247) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw247) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw247) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 249/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner
+type rw248 rwState
+
+func (w *rw248) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw248) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw248) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw248) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw248) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw248) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw248) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw248) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw248) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw248) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+
+// combination 250/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, io.StringWriter
+type rw249 rwState
+
+func (w *rw249) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw249) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw249) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw249) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw249) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw249) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw249) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw249) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw249) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw249) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw249) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 251/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher
+type rw250 rwState
+
+func (w *rw250) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw250) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw250) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw250) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw250) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw250) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw250) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw250) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw250) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw250) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw250) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 252/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, http.Pusher, io.StringWriter
+type rw251 rwState
+
+func (w *rw251) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw251) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw251) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw251) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw251) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw251) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw251) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw251) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw251) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw251) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw251) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw251) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 253/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler
+type rw252 rwState
+
+func (w *rw252) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw252) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw252) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw252) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw252) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw252) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw252) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw252) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw252) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw252) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw252) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+
+// combination 254/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, io.StringWriter
+type rw253 rwState
+
+func (w *rw253) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw253) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw253) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw253) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw253) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw253) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw253) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw253) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw253) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw253) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw253) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw253) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
+}
+
+// combination 255/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher
+type rw254 rwState
+
+func (w *rw254) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw254) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw254) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw254) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw254) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw254) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw254) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw254) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw254) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw254) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw254) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw254) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+
+// combination 256/256: http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler, http.Pusher, io.StringWriter
+type rw255 rwState
+
+func (w *rw255) Unwrap() http.ResponseWriter { return w.w }
+func (w *rw255) Header() http.Header {
+	return (*rwState)(w).doHeader()
+}
+func (w *rw255) WriteHeader(code int) {
+	(*rwState)(w).doWriteHeader(code)
+}
+func (w *rw255) Write(b []byte) (int, error) {
+	return (*rwState)(w).doWrite(b)
+}
+func (w *rw255) Flush() {
+	(*rwState)(w).doFlush()
+}
+func (w *rw255) CloseNotify() <-chan bool {
+	return (*rwState)(w).doCloseNotify()
+}
+func (w *rw255) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return (*rwState)(w).doHijack()
+}
+func (w *rw255) ReadFrom(src io.Reader) (int64, error) {
+	return (*rwState)(w).doReadFrom(src)
+}
+func (w *rw255) SetReadDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetReadDeadline(deadline)
+}
+func (w *rw255) SetWriteDeadline(deadline time.Time) error {
+	return (*rwState)(w).doSetWriteDeadline(deadline)
+}
+func (w *rw255) EnableFullDuplex() error {
+	return (*rwState)(w).doEnableFullDuplex()
+}
+func (w *rw255) Push(target string, opts *http.PushOptions) error {
+	return (*rwState)(w).doPush(target, opts)
+}
+func (w *rw255) WriteString(s string) (int, error) {
+	return (*rwState)(w).doWriteString(s)
 }
 
 type Unwrapper interface {
@@ -2809,7 +7822,6 @@ func Unwrap(w http.ResponseWriter) http.ResponseWriter {
 	if rw, ok := w.(Unwrapper); ok {
 		// recurse until rw.Unwrap() returns a non-Unwrapper
 		return Unwrap(rw.Unwrap())
-	} else {
-		return w
 	}
+	return w
 }
