@@ -96,26 +96,28 @@ type Hooks struct {
 `, strings.Join(docList, "\n"))
 	g.Printf("func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {\n")
 	g.Printf("state := &rwState{w: w}\n")
-	// Precompute hook chains once per Wrap call.
+
+	// Precompute hook chains once per Wrap call and
+	// build a uint8 combo index so the switch compiles to a jump table.
+	g.Printf("var combo uint8\n")
 	for _, fn := range ifaces[0].Funcs {
 		g.Printf("if hooks.%s != nil {\n", fn.Name)
 		g.Printf("state.%s = hooks.%s(w.%s)\n", fieldName(fn.Name), fn.Name, fn.Name)
 		g.Printf("}\n")
 	}
+
 	for i, iface := range subIfaces {
-		g.Printf("t%[1]d, i%[1]d := w.(%s)\n", i, iface.Name)
+		g.Printf("if t%[1]d, i%[1]d := w.(%s); i%[1]d {\n", i, iface.Name)
+		bit := len(subIfaces) - i - 1
+		g.Printf("combo |= 1<<%d\n", bit)
 		for _, fn := range iface.Funcs {
-			g.Printf("if i%d && hooks.%s != nil {\n", i, fn.Name)
+			g.Printf("if hooks.%s != nil {\n", fn.Name)
 			g.Printf("state.%s = hooks.%s(t%d.%s)\n", fieldName(fn.Name), fn.Name, i, fn.Name)
 			g.Printf("}\n")
 		}
+		g.Printf("}\n")
 	}
-	// Build a uint8 combo index so the switch compiles to a jump table.
-	g.Printf("var combo uint8\n")
-	for i := range subIfaces {
-		bit := len(subIfaces) - i - 1
-		g.Printf("if i%d { combo |= 1<<%d }\n", i, bit)
-	}
+
 	g.Printf("switch combo {\n")
 	combinations := 1 << uint(len(subIfaces))
 	for c := 0; c < combinations; c++ {

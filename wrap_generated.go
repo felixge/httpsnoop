@@ -84,6 +84,7 @@ type Hooks struct {
 // hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	state := &rwState{w: w}
+	var combo uint8
 	if hooks.Header != nil {
 		state.header = hooks.Header(w.Header)
 	}
@@ -93,65 +94,56 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	if hooks.Write != nil {
 		state.write = hooks.Write(w.Write)
 	}
-	t0, i0 := w.(http.Flusher)
-	if i0 && hooks.Flush != nil {
-		state.flush = hooks.Flush(t0.Flush)
-	}
-	t1, i1 := w.(http.CloseNotifier)
-	if i1 && hooks.CloseNotify != nil {
-		state.closeNotify = hooks.CloseNotify(t1.CloseNotify)
-	}
-	t2, i2 := w.(http.Hijacker)
-	if i2 && hooks.Hijack != nil {
-		state.hijack = hooks.Hijack(t2.Hijack)
-	}
-	t3, i3 := w.(io.ReaderFrom)
-	if i3 && hooks.ReadFrom != nil {
-		state.readFrom = hooks.ReadFrom(t3.ReadFrom)
-	}
-	t4, i4 := w.(deadliner)
-	if i4 && hooks.SetReadDeadline != nil {
-		state.setReadDeadline = hooks.SetReadDeadline(t4.SetReadDeadline)
-	}
-	if i4 && hooks.SetWriteDeadline != nil {
-		state.setWriteDeadline = hooks.SetWriteDeadline(t4.SetWriteDeadline)
-	}
-	t5, i5 := w.(fullDuplexEnabler)
-	if i5 && hooks.EnableFullDuplex != nil {
-		state.enableFullDuplex = hooks.EnableFullDuplex(t5.EnableFullDuplex)
-	}
-	t6, i6 := w.(http.Pusher)
-	if i6 && hooks.Push != nil {
-		state.push = hooks.Push(t6.Push)
-	}
-	t7, i7 := w.(io.StringWriter)
-	if i7 && hooks.WriteString != nil {
-		state.writeString = hooks.WriteString(t7.WriteString)
-	}
-	var combo uint8
-	if i0 {
+	if t0, i0 := w.(http.Flusher); i0 {
 		combo |= 1 << 7
+		if hooks.Flush != nil {
+			state.flush = hooks.Flush(t0.Flush)
+		}
 	}
-	if i1 {
+	if t1, i1 := w.(http.CloseNotifier); i1 {
 		combo |= 1 << 6
+		if hooks.CloseNotify != nil {
+			state.closeNotify = hooks.CloseNotify(t1.CloseNotify)
+		}
 	}
-	if i2 {
+	if t2, i2 := w.(http.Hijacker); i2 {
 		combo |= 1 << 5
+		if hooks.Hijack != nil {
+			state.hijack = hooks.Hijack(t2.Hijack)
+		}
 	}
-	if i3 {
+	if t3, i3 := w.(io.ReaderFrom); i3 {
 		combo |= 1 << 4
+		if hooks.ReadFrom != nil {
+			state.readFrom = hooks.ReadFrom(t3.ReadFrom)
+		}
 	}
-	if i4 {
+	if t4, i4 := w.(deadliner); i4 {
 		combo |= 1 << 3
+		if hooks.SetReadDeadline != nil {
+			state.setReadDeadline = hooks.SetReadDeadline(t4.SetReadDeadline)
+		}
+		if hooks.SetWriteDeadline != nil {
+			state.setWriteDeadline = hooks.SetWriteDeadline(t4.SetWriteDeadline)
+		}
 	}
-	if i5 {
+	if t5, i5 := w.(fullDuplexEnabler); i5 {
 		combo |= 1 << 2
+		if hooks.EnableFullDuplex != nil {
+			state.enableFullDuplex = hooks.EnableFullDuplex(t5.EnableFullDuplex)
+		}
 	}
-	if i6 {
+	if t6, i6 := w.(http.Pusher); i6 {
 		combo |= 1 << 1
+		if hooks.Push != nil {
+			state.push = hooks.Push(t6.Push)
+		}
 	}
-	if i7 {
+	if t7, i7 := w.(io.StringWriter); i7 {
 		combo |= 1 << 0
+		if hooks.WriteString != nil {
+			state.writeString = hooks.WriteString(t7.WriteString)
+		}
 	}
 	switch combo {
 	case 0:
