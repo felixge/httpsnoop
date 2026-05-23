@@ -69,6 +69,16 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 				}
 			},
 
+			WriteString: func(next WriteStringFunc) WriteStringFunc {
+				return func(s string) (int, error) {
+					n, err := next(s)
+
+					m.Written += int64(n)
+					headerWritten = true
+					return n, err
+				}
+			},
+
 			ReadFrom: func(next ReadFromFunc) ReadFromFunc {
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
