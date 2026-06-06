@@ -12,7 +12,7 @@ import (
 )
 
 func TestWrap(t *testing.T) {
-	// combination 1/64
+	// combination 1/128
 	{
 		t.Log("http.ResponseWriter")
 		inner := struct {
@@ -34,6 +34,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -50,7 +53,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 2/64
+	// combination 2/128
 	{
 		t.Log("http.ResponseWriter, fullDuplexEnabler")
 		inner := struct {
@@ -73,6 +76,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -89,7 +95,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 3/64
+	// combination 3/128
 	{
 		t.Log("http.ResponseWriter, deadliner")
 		inner := struct {
@@ -112,6 +118,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -128,7 +137,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 4/64
+	// combination 4/128
 	{
 		t.Log("http.ResponseWriter, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -152,6 +161,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -168,7 +180,179 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 5/64
+	// combination 5/128
+	{
+		t.Log("http.ResponseWriter, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 6/128
+	{
+		t.Log("http.ResponseWriter, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 7/128
+	{
+		t.Log("http.ResponseWriter, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 8/128
+	{
+		t.Log("http.ResponseWriter, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 9/128
 	{
 		t.Log("http.ResponseWriter, io.ReaderFrom")
 		inner := struct {
@@ -191,6 +375,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -207,7 +394,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 6/64
+	// combination 10/128
 	{
 		t.Log("http.ResponseWriter, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -231,6 +418,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -247,7 +437,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 7/64
+	// combination 11/128
 	{
 		t.Log("http.ResponseWriter, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -271,6 +461,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -287,7 +480,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 8/64
+	// combination 12/128
 	{
 		t.Log("http.ResponseWriter, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -312,6 +505,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -328,7 +524,183 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 9/64
+	// combination 13/128
+	{
+		t.Log("http.ResponseWriter, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 14/128
+	{
+		t.Log("http.ResponseWriter, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 15/128
+	{
+		t.Log("http.ResponseWriter, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 16/128
+	{
+		t.Log("http.ResponseWriter, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 17/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker")
 		inner := struct {
@@ -351,6 +723,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -367,7 +742,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 10/64
+	// combination 18/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, fullDuplexEnabler")
 		inner := struct {
@@ -391,6 +766,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -407,7 +785,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 11/64
+	// combination 19/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, deadliner")
 		inner := struct {
@@ -431,6 +809,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -447,7 +828,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 12/64
+	// combination 20/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -472,6 +853,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -488,7 +872,183 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 13/64
+	// combination 21/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 22/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 23/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 24/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 25/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom")
 		inner := struct {
@@ -512,6 +1072,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -528,7 +1091,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 14/64
+	// combination 26/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -553,6 +1116,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -569,7 +1135,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 15/64
+	// combination 27/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -594,6 +1160,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -610,7 +1179,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 16/64
+	// combination 28/128
 	{
 		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -636,6 +1205,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -652,7 +1224,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 17/64
+	// combination 29/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 30/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 31/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 32/128
+	{
+		t.Log("http.ResponseWriter, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 33/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier")
 		inner := struct {
@@ -675,6 +1427,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -691,7 +1446,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 18/64
+	// combination 34/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, fullDuplexEnabler")
 		inner := struct {
@@ -715,6 +1470,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -731,7 +1489,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 19/64
+	// combination 35/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, deadliner")
 		inner := struct {
@@ -755,6 +1513,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -771,7 +1532,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 20/64
+	// combination 36/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -796,6 +1557,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -812,7 +1576,183 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 21/64
+	// combination 37/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 38/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 39/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 40/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 41/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom")
 		inner := struct {
@@ -836,6 +1776,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -852,7 +1795,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 22/64
+	// combination 42/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -877,6 +1820,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -893,7 +1839,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 23/64
+	// combination 43/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -918,6 +1864,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -934,7 +1883,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 24/64
+	// combination 44/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -960,6 +1909,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -976,7 +1928,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 25/64
+	// combination 45/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 46/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 47/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 48/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 49/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker")
 		inner := struct {
@@ -1000,6 +2132,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1016,7 +2151,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 26/64
+	// combination 50/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, fullDuplexEnabler")
 		inner := struct {
@@ -1041,6 +2176,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1057,7 +2195,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 27/64
+	// combination 51/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner")
 		inner := struct {
@@ -1082,6 +2220,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1098,7 +2239,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 28/64
+	// combination 52/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1124,6 +2265,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1140,7 +2284,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 29/64
+	// combination 53/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 54/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 55/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 56/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 57/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
 		inner := struct {
@@ -1165,6 +2489,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1181,7 +2508,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 30/64
+	// combination 58/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -1207,6 +2534,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1223,7 +2553,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 31/64
+	// combination 59/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -1249,6 +2579,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1265,7 +2598,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 32/64
+	// combination 60/128
 	{
 		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1292,6 +2625,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1308,7 +2644,191 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 33/64
+	// combination 61/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 62/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 63/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 64/128
+	{
+		t.Log("http.ResponseWriter, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 65/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher")
 		inner := struct {
@@ -1331,6 +2851,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1347,7 +2870,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 34/64
+	// combination 66/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, fullDuplexEnabler")
 		inner := struct {
@@ -1371,6 +2894,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1387,7 +2913,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 35/64
+	// combination 67/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, deadliner")
 		inner := struct {
@@ -1411,6 +2937,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1427,7 +2956,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 36/64
+	// combination 68/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1452,6 +2981,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1468,7 +3000,183 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 37/64
+	// combination 69/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 70/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 71/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 72/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 73/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom")
 		inner := struct {
@@ -1492,6 +3200,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1508,7 +3219,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 38/64
+	// combination 74/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -1533,6 +3244,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1549,7 +3263,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 39/64
+	// combination 75/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -1574,6 +3288,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1590,7 +3307,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 40/64
+	// combination 76/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1616,6 +3333,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1632,7 +3352,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 41/64
+	// combination 77/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 78/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 79/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 80/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 81/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker")
 		inner := struct {
@@ -1656,6 +3556,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1672,7 +3575,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 42/64
+	// combination 82/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, fullDuplexEnabler")
 		inner := struct {
@@ -1697,6 +3600,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1713,7 +3619,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 43/64
+	// combination 83/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, deadliner")
 		inner := struct {
@@ -1738,6 +3644,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1754,7 +3663,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 44/64
+	// combination 84/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1780,6 +3689,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1796,7 +3708,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 45/64
+	// combination 85/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 86/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 87/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 88/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 89/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom")
 		inner := struct {
@@ -1821,6 +3913,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1837,7 +3932,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 46/64
+	// combination 90/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -1863,6 +3958,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -1879,7 +3977,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 47/64
+	// combination 91/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -1905,6 +4003,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1921,7 +4022,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 48/64
+	// combination 92/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -1948,6 +4049,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -1964,7 +4068,191 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 49/64
+	// combination 93/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 94/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 95/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 96/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 97/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier")
 		inner := struct {
@@ -1988,6 +4276,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2004,7 +4295,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 50/64
+	// combination 98/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, fullDuplexEnabler")
 		inner := struct {
@@ -2029,6 +4320,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2045,7 +4339,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 51/64
+	// combination 99/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner")
 		inner := struct {
@@ -2070,6 +4364,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2086,7 +4383,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 52/64
+	// combination 100/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -2112,6 +4409,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2128,7 +4428,187 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 53/64
+	// combination 101/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 102/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 103/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 104/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 105/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom")
 		inner := struct {
@@ -2153,6 +4633,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2169,7 +4652,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 54/64
+	// combination 106/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -2195,6 +4678,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2211,7 +4697,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 55/64
+	// combination 107/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -2237,6 +4723,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2253,7 +4742,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 56/64
+	// combination 108/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -2280,6 +4769,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2296,7 +4788,191 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 57/64
+	// combination 109/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 110/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 111/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 112/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 113/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker")
 		inner := struct {
@@ -2321,6 +4997,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2337,7 +5016,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 58/64
+	// combination 114/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, fullDuplexEnabler")
 		inner := struct {
@@ -2363,6 +5042,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2379,7 +5061,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 59/64
+	// combination 115/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner")
 		inner := struct {
@@ -2405,6 +5087,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2421,7 +5106,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 60/64
+	// combination 116/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -2448,6 +5133,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != false {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2464,7 +5152,191 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 61/64
+	// combination 117/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 118/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 119/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 120/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 121/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom")
 		inner := struct {
@@ -2490,6 +5362,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2506,7 +5381,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 62/64
+	// combination 122/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, fullDuplexEnabler")
 		inner := struct {
@@ -2533,6 +5408,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != false {
 			t.Error("unexpected interface")
 		}
@@ -2549,7 +5427,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 63/64
+	// combination 123/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner")
 		inner := struct {
@@ -2576,6 +5454,9 @@ func TestWrap(t *testing.T) {
 		if _, ok := w.(io.ReaderFrom); ok != true {
 			t.Error("unexpected interface")
 		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
 		if _, ok := w.(deadliner); ok != true {
 			t.Error("unexpected interface")
 		}
@@ -2592,7 +5473,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	// combination 64/64
+	// combination 124/128
 	{
 		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, deadliner, fullDuplexEnabler")
 		inner := struct {
@@ -2618,6 +5499,197 @@ func TestWrap(t *testing.T) {
 			t.Error("unexpected interface")
 		}
 		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 125/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 126/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != false {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != true {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 127/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(deadliner); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(fullDuplexEnabler); ok != false {
+			t.Error("unexpected interface")
+		}
+
+		if w, ok := w.(Unwrapper); ok {
+			if w.Unwrap() != inner {
+				t.Error("w.Unwrap() failed")
+			}
+		} else {
+			t.Error("Unwrapper interface not implemented")
+		}
+	}
+
+	// combination 128/128
+	{
+		t.Log("http.ResponseWriter, http.Flusher, http.CloseNotifier, http.Hijacker, io.ReaderFrom, errorFlusher, deadliner, fullDuplexEnabler")
+		inner := struct {
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{}
+		w := Wrap(inner, Hooks{})
+		if _, ok := w.(http.ResponseWriter); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Flusher); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.CloseNotifier); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(http.Hijacker); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(io.ReaderFrom); ok != true {
+			t.Error("unexpected interface")
+		}
+		if _, ok := w.(errorFlusher); ok != true {
 			t.Error("unexpected interface")
 		}
 		if _, ok := w.(deadliner); ok != true {
