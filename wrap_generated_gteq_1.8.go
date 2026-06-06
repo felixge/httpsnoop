@@ -34,6 +34,9 @@ type HijackFunc func() (net.Conn, *bufio.ReadWriter, error)
 // ReadFromFunc is part of the io.ReaderFrom interface.
 type ReadFromFunc func(src io.Reader) (int64, error)
 
+// FlushErrorFunc is part of the errorFlusher interface.
+type FlushErrorFunc func() error
+
 // SetReadDeadlineFunc is part of the deadliner interface.
 type SetReadDeadlineFunc func(deadline time.Time) error
 
@@ -57,6 +60,7 @@ type Hooks struct {
 	CloseNotify      func(CloseNotifyFunc) CloseNotifyFunc
 	Hijack           func(HijackFunc) HijackFunc
 	ReadFrom         func(ReadFromFunc) ReadFromFunc
+	FlushError       func(FlushErrorFunc) FlushErrorFunc
 	SetReadDeadline  func(SetReadDeadlineFunc) SetReadDeadlineFunc
 	SetWriteDeadline func(SetWriteDeadlineFunc) SetWriteDeadlineFunc
 	EnableFullDuplex func(EnableFullDuplexFunc) EnableFullDuplexFunc
@@ -70,6 +74,7 @@ type Hooks struct {
 // - http.CloseNotifier
 // - http.Hijacker
 // - io.ReaderFrom
+// - errorFlusher
 // - deadliner
 // - fullDuplexEnabler
 // - http.Pusher
@@ -86,63 +91,64 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	_, i1 := w.(http.CloseNotifier)
 	_, i2 := w.(http.Hijacker)
 	_, i3 := w.(io.ReaderFrom)
-	_, i4 := w.(deadliner)
-	_, i5 := w.(fullDuplexEnabler)
-	_, i6 := w.(http.Pusher)
+	_, i4 := w.(errorFlusher)
+	_, i5 := w.(deadliner)
+	_, i6 := w.(fullDuplexEnabler)
+	_, i7 := w.(http.Pusher)
 	switch {
-	// combination 1/128
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 1/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 		}{rw, rw}
-	// combination 2/128
-	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6:
+	// combination 2/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Pusher
 		}{rw, rw, rw}
-	// combination 3/128
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6:
+	// combination 3/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			fullDuplexEnabler
 		}{rw, rw, rw}
-	// combination 4/128
-	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6:
+	// combination 4/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 5/128
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6:
+	// combination 5/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			deadliner
 		}{rw, rw, rw}
-	// combination 6/128
-	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6:
+	// combination 6/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 7/128
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6:
+	// combination 7/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw}
-	// combination 8/128
-	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && i6:
+	// combination 8/256
+	case !i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -150,31 +156,99 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 9/128
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6:
+	// combination 9/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+		}{rw, rw, rw}
+	// combination 10/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw}
+	// combination 11/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw}
+	// combination 12/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 13/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw}
+	// combination 14/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 15/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw}
+	// combination 16/256
+	case !i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 17/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			io.ReaderFrom
 		}{rw, rw, rw}
-	// combination 10/128
-	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6:
+	// combination 18/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 11/128
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6:
+	// combination 19/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw}
-	// combination 12/128
-	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && i6:
+	// combination 20/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -182,16 +256,16 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 13/128
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6:
+	// combination 21/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw}
-	// combination 14/128
-	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && i6:
+	// combination 22/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -199,8 +273,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 15/128
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && !i6:
+	// combination 23/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -208,8 +282,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 16/128
-	case !i0 && !i1 && !i2 && i3 && i4 && i5 && i6:
+	// combination 24/256
+	case !i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -218,31 +292,107 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 17/128
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 25/256
+	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw}
+	// combination 26/256
+	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 27/256
+	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw}
+	// combination 28/256
+	case !i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 29/256
+	case !i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw}
+	// combination 30/256
+	case !i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 31/256
+	case !i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 32/256
+	case !i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 33/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Hijacker
 		}{rw, rw, rw}
-	// combination 18/128
-	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6:
+	// combination 34/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Hijacker
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 19/128
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6:
+	// combination 35/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Hijacker
 			fullDuplexEnabler
 		}{rw, rw, rw, rw}
-	// combination 20/128
-	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && i6:
+	// combination 36/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -250,16 +400,16 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 21/128
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6:
+	// combination 37/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Hijacker
 			deadliner
 		}{rw, rw, rw, rw}
-	// combination 22/128
-	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && i6:
+	// combination 38/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -267,8 +417,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 23/128
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && !i6:
+	// combination 39/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -276,8 +426,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 24/128
-	case !i0 && !i1 && i2 && !i3 && i4 && i5 && i6:
+	// combination 40/256
+	case !i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -286,16 +436,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 25/128
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6:
+	// combination 41/256
+	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+		}{rw, rw, rw, rw}
+	// combination 42/256
+	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 43/256
+	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw}
+	// combination 44/256
+	case !i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 45/256
+	case !i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw}
+	// combination 46/256
+	case !i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 47/256
+	case !i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 48/256
+	case !i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 49/256
+	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
-	// combination 26/128
-	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && i6:
+	// combination 50/256
+	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -303,8 +529,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 27/128
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && !i6:
+	// combination 51/256
+	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -312,8 +538,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 28/128
-	case !i0 && !i1 && i2 && i3 && !i4 && i5 && i6:
+	// combination 52/256
+	case !i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -322,8 +548,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 29/128
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && !i6:
+	// combination 53/256
+	case !i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -331,8 +557,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 30/128
-	case !i0 && !i1 && i2 && i3 && i4 && !i5 && i6:
+	// combination 54/256
+	case !i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -341,8 +567,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 31/128
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && !i6:
+	// combination 55/256
+	case !i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -351,8 +577,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 32/128
-	case !i0 && !i1 && i2 && i3 && i4 && i5 && i6:
+	// combination 56/256
+	case !i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -362,31 +588,115 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 33/128
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 57/256
+	case !i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 58/256
+	case !i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 59/256
+	case !i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 60/256
+	case !i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 61/256
+	case !i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 62/256
+	case !i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 63/256
+	case !i0 && !i1 && i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 64/256
+	case !i0 && !i1 && i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 65/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 		}{rw, rw, rw}
-	// combination 34/128
-	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6:
+	// combination 66/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 35/128
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6:
+	// combination 67/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 			fullDuplexEnabler
 		}{rw, rw, rw, rw}
-	// combination 36/128
-	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && i6:
+	// combination 68/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -394,16 +704,16 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 37/128
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6:
+	// combination 69/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 			deadliner
 		}{rw, rw, rw, rw}
-	// combination 38/128
-	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && i6:
+	// combination 70/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -411,8 +721,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 39/128
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && !i6:
+	// combination 71/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -420,8 +730,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 40/128
-	case !i0 && i1 && !i2 && !i3 && i4 && i5 && i6:
+	// combination 72/256
+	case !i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -430,16 +740,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 41/128
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6:
+	// combination 73/256
+	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+		}{rw, rw, rw, rw}
+	// combination 74/256
+	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 75/256
+	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw}
+	// combination 76/256
+	case !i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 77/256
+	case !i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw}
+	// combination 78/256
+	case !i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 79/256
+	case !i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 80/256
+	case !i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 81/256
+	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
-	// combination 42/128
-	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && i6:
+	// combination 82/256
+	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -447,8 +833,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 43/128
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && !i6:
+	// combination 83/256
+	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -456,8 +842,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 44/128
-	case !i0 && i1 && !i2 && i3 && !i4 && i5 && i6:
+	// combination 84/256
+	case !i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -466,8 +852,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 45/128
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && !i6:
+	// combination 85/256
+	case !i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -475,8 +861,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 46/128
-	case !i0 && i1 && !i2 && i3 && i4 && !i5 && i6:
+	// combination 86/256
+	case !i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -485,8 +871,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 47/128
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && !i6:
+	// combination 87/256
+	case !i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -495,8 +881,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 48/128
-	case !i0 && i1 && !i2 && i3 && i4 && i5 && i6:
+	// combination 88/256
+	case !i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -506,16 +892,100 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 49/128
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 89/256
+	case !i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 90/256
+	case !i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 91/256
+	case !i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 92/256
+	case !i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 93/256
+	case !i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 94/256
+	case !i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 95/256
+	case !i0 && i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 96/256
+	case !i0 && i1 && !i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 97/256
+	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.CloseNotifier
 			http.Hijacker
 		}{rw, rw, rw, rw}
-	// combination 50/128
-	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && i6:
+	// combination 98/256
+	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -523,8 +993,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 51/128
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && !i6:
+	// combination 99/256
+	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -532,8 +1002,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 52/128
-	case !i0 && i1 && i2 && !i3 && !i4 && i5 && i6:
+	// combination 100/256
+	case !i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -542,8 +1012,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 53/128
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && !i6:
+	// combination 101/256
+	case !i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -551,8 +1021,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 54/128
-	case !i0 && i1 && i2 && !i3 && i4 && !i5 && i6:
+	// combination 102/256
+	case !i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -561,8 +1031,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 55/128
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && !i6:
+	// combination 103/256
+	case !i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -571,8 +1041,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 56/128
-	case !i0 && i1 && i2 && !i3 && i4 && i5 && i6:
+	// combination 104/256
+	case !i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -582,8 +1052,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 57/128
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && !i6:
+	// combination 105/256
+	case !i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 106/256
+	case !i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 107/256
+	case !i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 108/256
+	case !i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 109/256
+	case !i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 110/256
+	case !i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 111/256
+	case !i0 && i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 112/256
+	case !i0 && i1 && i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 113/256
+	case !i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -591,8 +1145,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw, rw}
-	// combination 58/128
-	case !i0 && i1 && i2 && i3 && !i4 && !i5 && i6:
+	// combination 114/256
+	case !i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -601,8 +1155,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 59/128
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && !i6:
+	// combination 115/256
+	case !i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -611,8 +1165,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 60/128
-	case !i0 && i1 && i2 && i3 && !i4 && i5 && i6:
+	// combination 116/256
+	case !i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -622,8 +1176,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 61/128
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && !i6:
+	// combination 117/256
+	case !i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -632,8 +1186,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 62/128
-	case !i0 && i1 && i2 && i3 && i4 && !i5 && i6:
+	// combination 118/256
+	case !i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -643,8 +1197,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 63/128
-	case !i0 && i1 && i2 && i3 && i4 && i5 && !i6:
+	// combination 119/256
+	case !i0 && i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -654,8 +1208,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 64/128
-	case !i0 && i1 && i2 && i3 && i4 && i5 && i6:
+	// combination 120/256
+	case !i0 && i1 && i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -666,31 +1220,123 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 65/128
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 121/256
+	case !i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 122/256
+	case !i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 123/256
+	case !i0 && i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 124/256
+	case !i0 && i1 && i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 125/256
+	case !i0 && i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 126/256
+	case !i0 && i1 && i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 127/256
+	case !i0 && i1 && i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 128/256
+	case !i0 && i1 && i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 129/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 		}{rw, rw, rw}
-	// combination 66/128
-	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6:
+	// combination 130/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			http.Pusher
 		}{rw, rw, rw, rw}
-	// combination 67/128
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6:
+	// combination 131/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			fullDuplexEnabler
 		}{rw, rw, rw, rw}
-	// combination 68/128
-	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6:
+	// combination 132/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -698,16 +1344,16 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 69/128
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6:
+	// combination 133/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			deadliner
 		}{rw, rw, rw, rw}
-	// combination 70/128
-	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6:
+	// combination 134/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -715,8 +1361,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 71/128
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6:
+	// combination 135/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -724,8 +1370,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 72/128
-	case i0 && !i1 && !i2 && !i3 && i4 && i5 && i6:
+	// combination 136/256
+	case i0 && !i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -734,16 +1380,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 73/128
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6:
+	// combination 137/256
+	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+		}{rw, rw, rw, rw}
+	// combination 138/256
+	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw}
+	// combination 139/256
+	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw}
+	// combination 140/256
+	case i0 && !i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 141/256
+	case i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw}
+	// combination 142/256
+	case i0 && !i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 143/256
+	case i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 144/256
+	case i0 && !i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 145/256
+	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			io.ReaderFrom
 		}{rw, rw, rw, rw}
-	// combination 74/128
-	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6:
+	// combination 146/256
+	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -751,8 +1473,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 75/128
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6:
+	// combination 147/256
+	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -760,8 +1482,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 76/128
-	case i0 && !i1 && !i2 && i3 && !i4 && i5 && i6:
+	// combination 148/256
+	case i0 && !i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -770,8 +1492,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 77/128
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6:
+	// combination 149/256
+	case i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -779,8 +1501,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 78/128
-	case i0 && !i1 && !i2 && i3 && i4 && !i5 && i6:
+	// combination 150/256
+	case i0 && !i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -789,8 +1511,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 79/128
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && !i6:
+	// combination 151/256
+	case i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -799,8 +1521,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 80/128
-	case i0 && !i1 && !i2 && i3 && i4 && i5 && i6:
+	// combination 152/256
+	case i0 && !i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -810,16 +1532,100 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 81/128
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 153/256
+	case i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 154/256
+	case i0 && !i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 155/256
+	case i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 156/256
+	case i0 && !i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 157/256
+	case i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 158/256
+	case i0 && !i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 159/256
+	case i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 160/256
+	case i0 && !i1 && !i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 161/256
+	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			http.Hijacker
 		}{rw, rw, rw, rw}
-	// combination 82/128
-	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6:
+	// combination 162/256
+	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -827,8 +1633,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 83/128
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6:
+	// combination 163/256
+	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -836,8 +1642,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 84/128
-	case i0 && !i1 && i2 && !i3 && !i4 && i5 && i6:
+	// combination 164/256
+	case i0 && !i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -846,8 +1652,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 85/128
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6:
+	// combination 165/256
+	case i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -855,8 +1661,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 86/128
-	case i0 && !i1 && i2 && !i3 && i4 && !i5 && i6:
+	// combination 166/256
+	case i0 && !i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -865,8 +1671,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 87/128
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && !i6:
+	// combination 167/256
+	case i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -875,8 +1681,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 88/128
-	case i0 && !i1 && i2 && !i3 && i4 && i5 && i6:
+	// combination 168/256
+	case i0 && !i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -886,8 +1692,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 89/128
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6:
+	// combination 169/256
+	case i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 170/256
+	case i0 && !i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 171/256
+	case i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 172/256
+	case i0 && !i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 173/256
+	case i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 174/256
+	case i0 && !i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 175/256
+	case i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 176/256
+	case i0 && !i1 && i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 177/256
+	case i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -895,8 +1785,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw, rw}
-	// combination 90/128
-	case i0 && !i1 && i2 && i3 && !i4 && !i5 && i6:
+	// combination 178/256
+	case i0 && !i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -905,8 +1795,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 91/128
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && !i6:
+	// combination 179/256
+	case i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -915,8 +1805,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 92/128
-	case i0 && !i1 && i2 && i3 && !i4 && i5 && i6:
+	// combination 180/256
+	case i0 && !i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -926,8 +1816,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 93/128
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && !i6:
+	// combination 181/256
+	case i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -936,8 +1826,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 94/128
-	case i0 && !i1 && i2 && i3 && i4 && !i5 && i6:
+	// combination 182/256
+	case i0 && !i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -947,8 +1837,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 95/128
-	case i0 && !i1 && i2 && i3 && i4 && i5 && !i6:
+	// combination 183/256
+	case i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -958,8 +1848,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 96/128
-	case i0 && !i1 && i2 && i3 && i4 && i5 && i6:
+	// combination 184/256
+	case i0 && !i1 && i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -970,16 +1860,108 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 97/128
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 185/256
+	case i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 186/256
+	case i0 && !i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 187/256
+	case i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 188/256
+	case i0 && !i1 && i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 189/256
+	case i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 190/256
+	case i0 && !i1 && i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 191/256
+	case i0 && !i1 && i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 192/256
+	case i0 && !i1 && i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 193/256
+	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
 			http.Flusher
 			http.CloseNotifier
 		}{rw, rw, rw, rw}
-	// combination 98/128
-	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6:
+	// combination 194/256
+	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -987,8 +1969,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			http.Pusher
 		}{rw, rw, rw, rw, rw}
-	// combination 99/128
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6:
+	// combination 195/256
+	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -996,8 +1978,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw}
-	// combination 100/128
-	case i0 && i1 && !i2 && !i3 && !i4 && i5 && i6:
+	// combination 196/256
+	case i0 && i1 && !i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1006,8 +1988,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 101/128
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6:
+	// combination 197/256
+	case i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1015,8 +1997,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			deadliner
 		}{rw, rw, rw, rw, rw}
-	// combination 102/128
-	case i0 && i1 && !i2 && !i3 && i4 && !i5 && i6:
+	// combination 198/256
+	case i0 && i1 && !i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1025,8 +2007,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 103/128
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && !i6:
+	// combination 199/256
+	case i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1035,8 +2017,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 104/128
-	case i0 && i1 && !i2 && !i3 && i4 && i5 && i6:
+	// combination 200/256
+	case i0 && i1 && !i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1046,8 +2028,92 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 105/128
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6:
+	// combination 201/256
+	case i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+		}{rw, rw, rw, rw, rw}
+	// combination 202/256
+	case i0 && i1 && !i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 203/256
+	case i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 204/256
+	case i0 && i1 && !i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 205/256
+	case i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 206/256
+	case i0 && i1 && !i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 207/256
+	case i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 208/256
+	case i0 && i1 && !i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 209/256
+	case i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1055,8 +2121,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			io.ReaderFrom
 		}{rw, rw, rw, rw, rw}
-	// combination 106/128
-	case i0 && i1 && !i2 && i3 && !i4 && !i5 && i6:
+	// combination 210/256
+	case i0 && i1 && !i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1065,8 +2131,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 107/128
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && !i6:
+	// combination 211/256
+	case i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1075,8 +2141,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 108/128
-	case i0 && i1 && !i2 && i3 && !i4 && i5 && i6:
+	// combination 212/256
+	case i0 && i1 && !i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1086,8 +2152,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 109/128
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && !i6:
+	// combination 213/256
+	case i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1096,8 +2162,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 110/128
-	case i0 && i1 && !i2 && i3 && i4 && !i5 && i6:
+	// combination 214/256
+	case i0 && i1 && !i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1107,8 +2173,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 111/128
-	case i0 && i1 && !i2 && i3 && i4 && i5 && !i6:
+	// combination 215/256
+	case i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1118,8 +2184,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 112/128
-	case i0 && i1 && !i2 && i3 && i4 && i5 && i6:
+	// combination 216/256
+	case i0 && i1 && !i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1130,8 +2196,100 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 113/128
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6:
+	// combination 217/256
+	case i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 218/256
+	case i0 && i1 && !i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 219/256
+	case i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 220/256
+	case i0 && i1 && !i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 221/256
+	case i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 222/256
+	case i0 && i1 && !i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 223/256
+	case i0 && i1 && !i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 224/256
+	case i0 && i1 && !i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 225/256
+	case i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1139,8 +2297,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.CloseNotifier
 			http.Hijacker
 		}{rw, rw, rw, rw, rw}
-	// combination 114/128
-	case i0 && i1 && i2 && !i3 && !i4 && !i5 && i6:
+	// combination 226/256
+	case i0 && i1 && i2 && !i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1149,8 +2307,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 115/128
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && !i6:
+	// combination 227/256
+	case i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1159,8 +2317,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 116/128
-	case i0 && i1 && i2 && !i3 && !i4 && i5 && i6:
+	// combination 228/256
+	case i0 && i1 && i2 && !i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1170,8 +2328,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 117/128
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && !i6:
+	// combination 229/256
+	case i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1180,8 +2338,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			deadliner
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 118/128
-	case i0 && i1 && i2 && !i3 && i4 && !i5 && i6:
+	// combination 230/256
+	case i0 && i1 && i2 && !i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1191,8 +2349,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 119/128
-	case i0 && i1 && i2 && !i3 && i4 && i5 && !i6:
+	// combination 231/256
+	case i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1202,8 +2360,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 120/128
-	case i0 && i1 && i2 && !i3 && i4 && i5 && i6:
+	// combination 232/256
+	case i0 && i1 && i2 && !i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1214,8 +2372,100 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 121/128
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && !i6:
+	// combination 233/256
+	case i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+		}{rw, rw, rw, rw, rw, rw}
+	// combination 234/256
+	case i0 && i1 && i2 && !i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 235/256
+	case i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 236/256
+	case i0 && i1 && i2 && !i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 237/256
+	case i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 238/256
+	case i0 && i1 && i2 && !i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 239/256
+	case i0 && i1 && i2 && !i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 240/256
+	case i0 && i1 && i2 && !i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 241/256
+	case i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1224,8 +2474,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			http.Hijacker
 			io.ReaderFrom
 		}{rw, rw, rw, rw, rw, rw}
-	// combination 122/128
-	case i0 && i1 && i2 && i3 && !i4 && !i5 && i6:
+	// combination 242/256
+	case i0 && i1 && i2 && i3 && !i4 && !i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1235,8 +2485,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 123/128
-	case i0 && i1 && i2 && i3 && !i4 && i5 && !i6:
+	// combination 243/256
+	case i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1246,8 +2496,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 124/128
-	case i0 && i1 && i2 && i3 && !i4 && i5 && i6:
+	// combination 244/256
+	case i0 && i1 && i2 && i3 && !i4 && !i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1258,8 +2508,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 125/128
-	case i0 && i1 && i2 && i3 && i4 && !i5 && !i6:
+	// combination 245/256
+	case i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1269,8 +2519,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			io.ReaderFrom
 			deadliner
 		}{rw, rw, rw, rw, rw, rw, rw}
-	// combination 126/128
-	case i0 && i1 && i2 && i3 && i4 && !i5 && i6:
+	// combination 246/256
+	case i0 && i1 && i2 && i3 && !i4 && i5 && !i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1281,8 +2531,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 127/128
-	case i0 && i1 && i2 && i3 && i4 && i5 && !i6:
+	// combination 247/256
+	case i0 && i1 && i2 && i3 && !i4 && i5 && i6 && !i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1293,8 +2543,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			deadliner
 			fullDuplexEnabler
 		}{rw, rw, rw, rw, rw, rw, rw, rw}
-	// combination 128/128
-	case i0 && i1 && i2 && i3 && i4 && i5 && i6:
+	// combination 248/256
+	case i0 && i1 && i2 && i3 && !i4 && i5 && i6 && i7:
 		return struct {
 			Unwrapper
 			http.ResponseWriter
@@ -1306,6 +2556,106 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 			fullDuplexEnabler
 			http.Pusher
 		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 249/256
+	case i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+		}{rw, rw, rw, rw, rw, rw, rw}
+	// combination 250/256
+	case i0 && i1 && i2 && i3 && i4 && !i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 251/256
+	case i0 && i1 && i2 && i3 && i4 && !i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 252/256
+	case i0 && i1 && i2 && i3 && i4 && !i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 253/256
+	case i0 && i1 && i2 && i3 && i4 && i5 && !i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+		}{rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 254/256
+	case i0 && i1 && i2 && i3 && i4 && i5 && !i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 255/256
+	case i0 && i1 && i2 && i3 && i4 && i5 && i6 && !i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw}
+	// combination 256/256
+	case i0 && i1 && i2 && i3 && i4 && i5 && i6 && i7:
+		return struct {
+			Unwrapper
+			http.ResponseWriter
+			http.Flusher
+			http.CloseNotifier
+			http.Hijacker
+			io.ReaderFrom
+			errorFlusher
+			deadliner
+			fullDuplexEnabler
+			http.Pusher
+		}{rw, rw, rw, rw, rw, rw, rw, rw, rw, rw}
 	}
 	panic("unreachable")
 }
@@ -1373,6 +2723,14 @@ func (w *rw) ReadFrom(src io.Reader) (int64, error) {
 		f = w.h.ReadFrom(f)
 	}
 	return f(src)
+}
+
+func (w *rw) FlushError() error {
+	f := w.w.(errorFlusher).FlushError
+	if w.h.FlushError != nil {
+		f = w.h.FlushError(f)
+	}
+	return f()
 }
 
 func (w *rw) SetReadDeadline(deadline time.Time) error {

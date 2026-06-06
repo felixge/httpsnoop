@@ -330,6 +330,12 @@ func main() {
 			},
 		},
 		{
+			Name: "errorFlusher", // Introduced in Go 1.20.
+			Funcs: []*InterfaceFunc{
+				{"FlushError", nil, "error"},
+			},
+		},
+		{
 			Name: "deadliner", // Introduced in Go 1.20.
 			Funcs: []*InterfaceFunc{
 				{"SetReadDeadline", FuncArgs{{"deadline", "time.Time"}}, "error"},

@@ -88,6 +88,13 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 	fn(Wrap(w, hooks))
 }
 
+// errorFlusher defines a method introduced in go 1.20. The standard
+// library seems not to provide an interface we can import, hence its definition
+// here.
+type errorFlusher interface {
+	FlushError() error
+}
+
 // deadliner defines two methods introduced in go 1.20. The standard library
 // seems not to provide an interface we can import, hence its definition here.
 type deadliner interface {
