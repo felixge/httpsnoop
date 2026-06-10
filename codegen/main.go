@@ -99,7 +99,7 @@ type Hooks struct {
 
 	// Precompute hook chains once per Wrap call and
 	// build a uint8 combo index so the switch compiles to a jump table.
-	g.Printf("var combo uint8\n")
+	g.Printf("var combo uint16\n")
 	for _, fn := range ifaces[0].Funcs {
 		g.Printf("if hooks.%s != nil {\n", fn.Name)
 		g.Printf("state.%s = hooks.%s(w.%s)\n", fieldName(fn.Name), fn.Name, fn.Name)
@@ -367,6 +367,12 @@ func main() {
 			Name: "http.Flusher",
 			Funcs: []*InterfaceFunc{
 				{"Flush", nil, ""},
+			},
+		},
+		{
+			Name: "httpFlushError", // Introduced in Go 1.20.
+			Funcs: []*InterfaceFunc{
+				{"FlushError", nil, "error"},
 			},
 		},
 		{

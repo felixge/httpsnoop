@@ -111,3 +111,11 @@ type deadliner interface {
 type fullDuplexEnabler interface {
 	EnableFullDuplex() error
 }
+
+// httpFlushError defines a method introduced in go 1.20. The standard
+// library seems not to provide an interface we can import, hence its definition
+// here.
+// See https://github.com/golang/go/blob/go1.20/src/net/http/responsecontroller.go#L50
+type httpFlushError interface {
+	FlushError() error
+}
