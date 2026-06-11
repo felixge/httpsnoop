@@ -62,6 +62,14 @@ func TestCaptureMetrics(t *testing.T) {
 			WantCode:    http.StatusOK,
 		},
 		{
+			Name: "string writer",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.WriteString(w, "write string")
+			}),
+			WantWritten: int64(len("write string")),
+			WantCode:    http.StatusOK,
+		},
+		{
 			Name: "empty panic",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				panic("oh no")
@@ -104,7 +112,7 @@ func TestCaptureMetrics(t *testing.T) {
 			}
 			if err == nil {
 				defer res.Body.Close()
- 			}
+			}
 			m := <-ch
 			if m.Code != test.WantCode {
 				t.Errorf("test %d: got=%d want=%d", i, m.Code, test.WantCode)
