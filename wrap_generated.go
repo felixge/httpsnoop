@@ -66,9 +66,9 @@ type WriteStringFunc func(s string) (int, error)
 //     configured, WriteString calls the underlying WriteString method directly.
 //   - If the underlying ResponseWriter implements both http.Flusher and
 //     FlushError, and FlushError is called, but only the Flush hook is
-//     configured, FlushError is routed through the Flush hook and returns nil.
-//     If neither hook is configured, FlushError calls the underlying FlushError
-//     method directly.
+//     configured, FlushError is routed through the Flush hook while preserving
+//     the error returned by the underlying FlushError method. If neither hook is
+//     configured, FlushError calls the underlying FlushError method directly.
 type Hooks struct {
 	Header           func(HeaderFunc) HeaderFunc
 	WriteHeader      func(WriteHeaderFunc) WriteHeaderFunc
@@ -127,7 +127,7 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 		if hooks.FlushError != nil {
 			state.flushError = hooks.FlushError(t1.FlushError)
 		} else if state.flush != nil {
-			state.flushError = func() error { state.flush(); return nil }
+			state.flushError = func() (err error) { hooks.Flush(func() { err = t1.FlushError() })(); return err }
 		}
 	}
 	if t2, i2 := w.(http.CloseNotifier); i2 {

@@ -2,6 +2,7 @@ package httpsnoop
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,8 @@ import (
 )
 
 type flushErrorResponseWriter struct {
-	h http.Header
+	h   http.Header
+	err error
 }
 
 func (w *flushErrorResponseWriter) Header() http.Header {
@@ -22,7 +24,7 @@ func (w *flushErrorResponseWriter) Header() http.Header {
 func (w *flushErrorResponseWriter) Write(p []byte) (int, error) { return len(p), nil }
 func (w *flushErrorResponseWriter) WriteHeader(code int)        {}
 func (w *flushErrorResponseWriter) Flush()                      {}
-func (w *flushErrorResponseWriter) FlushError() error           { return nil }
+func (w *flushErrorResponseWriter) FlushError() error           { return w.err }
 
 func TestWrap_preservesWriteHookForWriteString(t *testing.T) {
 	var got string
@@ -48,7 +50,8 @@ func TestWrap_preservesWriteHookForWriteString(t *testing.T) {
 
 func TestWrap_preservesFlushHookForFlushError(t *testing.T) {
 	flushed := false
-	w := Wrap(&flushErrorResponseWriter{}, Hooks{
+	wantErr := errors.New("flush failed")
+	w := Wrap(&flushErrorResponseWriter{err: wantErr}, Hooks{
 		Flush: func(next FlushFunc) FlushFunc {
 			return func() {
 				flushed = true
@@ -57,8 +60,8 @@ func TestWrap_preservesFlushHookForFlushError(t *testing.T) {
 		},
 	})
 
-	if err := http.NewResponseController(w).Flush(); err != nil {
-		t.Fatal(err)
+	if err := http.NewResponseController(w).Flush(); !errors.Is(err, wantErr) {
+		t.Fatalf("got err %v, want %v", err, wantErr)
 	}
 	if !flushed {
 		t.Fatal("Flush hook was not called")

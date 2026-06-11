@@ -81,9 +81,9 @@ func (b *Build) Implementation() *Generator {
 //     configured, WriteString calls the underlying WriteString method directly.
 //   - If the underlying ResponseWriter implements both http.Flusher and
 //     FlushError, and FlushError is called, but only the Flush hook is
-//     configured, FlushError is routed through the Flush hook and returns nil.
-//     If neither hook is configured, FlushError calls the underlying FlushError
-//     method directly.
+//     configured, FlushError is routed through the Flush hook while preserving
+//     the error returned by the underlying FlushError method. If neither hook is
+//     configured, FlushError calls the underlying FlushError method directly.
 type Hooks struct {
 `)
 	for _, iface := range ifaces {
@@ -134,7 +134,7 @@ type Hooks struct {
 				// http.ResponseController.Flush prefers FlushError over Flush.
 				// Preserve existing Flush hooks when wrapping writers that expose both.
 				g.Printf("} else if state.flush != nil {\n")
-				g.Printf("state.flushError = func() error { state.flush(); return nil }\n")
+				g.Printf("state.flushError = func() (err error) { hooks.Flush(func() { err = t%d.FlushError() })(); return err }\n", i)
 			} else if fn.Name == "WriteString" {
 				// io.WriteString prefers WriteString over Write. Preserve existing Write
 				// hooks when wrapping writers that expose both methods.
