@@ -67,6 +67,23 @@ func (b *Build) Implementation() *Generator {
 // Hooks defines a set of method interceptors for methods included in
 // http.ResponseWriter as well as some others. You can think of them as
 // middleware for the function calls they target. See Wrap for more details.
+//
+// For each method, the exact matching hook takes precedence. For example,
+// WriteString calls the WriteString hook when it is configured, even if a
+// Write hook is also configured. If the exact hook is not configured, most
+// methods call through to the underlying ResponseWriter directly.
+//
+// Two compatibility fallbacks preserve the behavior users had before Wrap
+// learned about newer optional interfaces:
+//   - If the underlying ResponseWriter implements io.StringWriter and
+//     WriteString is called, but only the Write hook is configured, WriteString
+//     is routed through the Write hook with []byte(s). If neither hook is
+//     configured, WriteString calls the underlying WriteString method directly.
+//   - If the underlying ResponseWriter implements both http.Flusher and
+//     FlushError, and FlushError is called, but only the Flush hook is
+//     configured, FlushError is routed through the Flush hook while preserving
+//     the error returned by the underlying FlushError method. If neither hook is
+//     configured, FlushError calls the underlying FlushError method directly.
 type Hooks struct {
 `)
 	for _, iface := range ifaces {
@@ -113,6 +130,17 @@ type Hooks struct {
 		for _, fn := range iface.Funcs {
 			g.Printf("if hooks.%s != nil {\n", fn.Name)
 			g.Printf("state.%s = hooks.%s(t%d.%s)\n", fieldName(fn.Name), fn.Name, i, fn.Name)
+			if fn.Name == "FlushError" {
+				// http.ResponseController.Flush prefers FlushError over Flush.
+				// Preserve existing Flush hooks when wrapping writers that expose both.
+				g.Printf("} else if state.flush != nil {\n")
+				g.Printf("state.flushError = func() (err error) { hooks.Flush(func() { err = t%d.FlushError() })(); return err }\n", i)
+			} else if fn.Name == "WriteString" {
+				// io.WriteString prefers WriteString over Write. Preserve existing Write
+				// hooks when wrapping writers that expose both methods.
+				g.Printf("} else if state.write != nil {\n")
+				g.Printf("state.writeString = func(s string) (int, error) { return state.write([]byte(s)) }\n")
+			}
 			g.Printf("}\n")
 		}
 		g.Printf("}\n")
