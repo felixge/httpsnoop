@@ -52,6 +52,23 @@ type WriteStringFunc func(s string) (int, error)
 // Hooks defines a set of method interceptors for methods included in
 // http.ResponseWriter as well as some others. You can think of them as
 // middleware for the function calls they target. See Wrap for more details.
+//
+// For each method, the exact matching hook takes precedence. For example,
+// WriteString calls the WriteString hook when it is configured, even if a
+// Write hook is also configured. If the exact hook is not configured, most
+// methods call through to the underlying ResponseWriter directly.
+//
+// Two compatibility fallbacks preserve the behavior users had before Wrap
+// learned about newer optional interfaces:
+//   - If the underlying ResponseWriter implements io.StringWriter and
+//     WriteString is called, but only the Write hook is configured, WriteString
+//     is routed through the Write hook with []byte(s). If neither hook is
+//     configured, WriteString calls the underlying WriteString method directly.
+//   - If the underlying ResponseWriter implements both http.Flusher and
+//     FlushError, and FlushError is called, but only the Flush hook is
+//     configured, FlushError is routed through the Flush hook and returns nil.
+//     If neither hook is configured, FlushError calls the underlying FlushError
+//     method directly.
 type Hooks struct {
 	Header           func(HeaderFunc) HeaderFunc
 	WriteHeader      func(WriteHeaderFunc) WriteHeaderFunc
@@ -109,6 +126,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 		combo |= 1 << 7
 		if hooks.FlushError != nil {
 			state.flushError = hooks.FlushError(t1.FlushError)
+		} else if state.flush != nil {
+			state.flushError = func() error { state.flush(); return nil }
 		}
 	}
 	if t2, i2 := w.(http.CloseNotifier); i2 {
@@ -154,6 +173,8 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 		combo |= 1 << 0
 		if hooks.WriteString != nil {
 			state.writeString = hooks.WriteString(t8.WriteString)
+		} else if state.write != nil {
+			state.writeString = func(s string) (int, error) { return state.write([]byte(s)) }
 		}
 	}
 	switch combo {

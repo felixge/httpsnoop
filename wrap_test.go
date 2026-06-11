@@ -8,6 +8,63 @@ import (
 	"testing"
 )
 
+type flushErrorResponseWriter struct {
+	h http.Header
+}
+
+func (w *flushErrorResponseWriter) Header() http.Header {
+	if w.h == nil {
+		w.h = http.Header{}
+	}
+	return w.h
+}
+
+func (w *flushErrorResponseWriter) Write(p []byte) (int, error) { return len(p), nil }
+func (w *flushErrorResponseWriter) WriteHeader(code int)        {}
+func (w *flushErrorResponseWriter) Flush()                      {}
+func (w *flushErrorResponseWriter) FlushError() error           { return nil }
+
+func TestWrap_preservesWriteHookForWriteString(t *testing.T) {
+	var got string
+	w := Wrap(httptest.NewRecorder(), Hooks{
+		Write: func(next WriteFunc) WriteFunc {
+			return func(p []byte) (int, error) {
+				got = string(p)
+				return next(p)
+			}
+		},
+	})
+
+	if _, ok := w.(io.StringWriter); !ok {
+		t.Fatal("wrapped writer should expose io.StringWriter")
+	}
+	if _, err := io.WriteString(w, "hello"); err != nil {
+		t.Fatal(err)
+	}
+	if got != "hello" {
+		t.Fatalf("Write hook saw %q, want %q", got, "hello")
+	}
+}
+
+func TestWrap_preservesFlushHookForFlushError(t *testing.T) {
+	flushed := false
+	w := Wrap(&flushErrorResponseWriter{}, Hooks{
+		Flush: func(next FlushFunc) FlushFunc {
+			return func() {
+				flushed = true
+				next()
+			}
+		},
+	})
+
+	if err := http.NewResponseController(w).Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if !flushed {
+		t.Fatal("Flush hook was not called")
+	}
+}
+
 func TestWrap_integration(t *testing.T) {
 	tests := []struct {
 		Name     string
