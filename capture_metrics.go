@@ -50,9 +50,15 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 		hooks         = Hooks{
 			WriteHeader: func(next WriteHeaderFunc) WriteHeaderFunc {
 				return func(code int) {
+					// Avoid "superfluous response.WriteHeader call" when the
+					// underlying writer already committed headers via Write /
+					// ReadFrom (common with http.ServeContent) (#32).
+					if headerWritten {
+						return
+					}
 					next(code)
 
-					if !(code >= 100 && code <= 199) && !headerWritten {
+					if !(code >= 100 && code <= 199) {
 						m.Code = code
 						headerWritten = true
 					}

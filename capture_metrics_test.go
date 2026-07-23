@@ -134,3 +134,20 @@ func errContains(err error, s string) bool {
 	}
 	return strings.Contains(errS, s)
 }
+
+func TestCaptureMetrics_superfluousWriteHeader(t *testing.T) {
+	// Regression for #32: ServeContent may Write body then call WriteHeader.
+	// The wrapper must not forward a second WriteHeader after Write.
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+		w.WriteHeader(http.StatusOK) // would log superfluous without the fix
+	})
+	rr := httptest.NewRecorder()
+	m := CaptureMetrics(h, rr, httptest.NewRequest("GET", "/", nil))
+	if m.Code != http.StatusOK {
+		t.Fatalf("code=%d", m.Code)
+	}
+	if m.Written != 5 {
+		t.Fatalf("written=%d", m.Written)
+	}
+}
