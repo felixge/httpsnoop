@@ -105,7 +105,7 @@ type Hooks struct {
 // The CaptureMetrics implementation serves as a working example for how the
 // hooks can be used.
 func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
-	state := &rwState{w: w}
+	state := &rwState{rwFields: rwFields{w: w}}
 	var combo uint16
 	if hooks.Header != nil {
 		state.header = hooks.Header(w.Header)
@@ -1206,7 +1206,9 @@ func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {
 	panic("unreachable")
 }
 
-type rwState struct {
+type rwState struct{ rwFields }
+
+type rwFields struct {
 	w                http.ResponseWriter
 	header           HeaderFunc
 	writeHeader      WriteHeaderFunc

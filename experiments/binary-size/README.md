@@ -19,6 +19,9 @@ GOTOOLCHAIN=go1.26.7 GOOS=darwin GOARCH=arm64 \
 
 # Optional release list; deltas are relative to the first release:
 experiments/binary-size/compare.sh v1.0.3 v1.0.4 v1.1.0
+
+# Compare a release with the current working tree via a local module replacement:
+experiments/binary-size/compare.sh v1.1.0 local
 ```
 
 Requires Go, Bash, and standard Unix utilities (`awk`, `column`, `wc`). Go downloads
@@ -63,3 +66,38 @@ symbols and debug information. It measures the net effect of upgrading the entir
 release, not the contribution of any individual change. Absolute sizes and deltas
 can vary with the application's reachable code, target, and toolchain. It does
 not measure runtime memory use, compressed size, or build-cache usage.
+
+## Shared-state metadata experiment
+
+The metadata-only implementation nests the underlying writer and hook fields in
+one value-embedded `rwFields` type. The 512 variant types then each describe one
+embedded field instead of repeating the same 14-field list. All method bodies,
+hook initialization, interface combinations, and the allocation layout remain
+unchanged. This does not include method promotion or metrics-only initialization.
+
+Before and after were both built using `local`, with the same repository path
+and build settings, to avoid differences in module replacement metadata:
+
+| Go | Mode | Before bytes | After bytes | Saved bytes |
+| --- | --- | ---: | ---: | ---: |
+| 1.26.7 | Default | 9,877,634 | 9,645,490 | 232,144 (2.35%) |
+| 1.26.7 | Stripped | 6,857,186 | 6,624,994 | 232,192 (3.39%) |
+| 1.27.1 | Default | 10,115,442 | 9,883,282 | 232,160 (2.30%) |
+| 1.27.1 | Stripped | 6,971,026 | 6,738,866 | 232,160 (3.33%) |
+
+The Go 1.26.7 read-only data section shrank by 163,616 bytes; Go 1.27.1's
+`__go_type` section shrank by 159,544 bytes. Machine-code section sizes were
+unchanged on both toolchains. Total file-size savings also reflect alignment and
+other file-format overhead, not just the type-data section.
+
+On Go 1.27.1, allocation benchmarks remained unchanged:
+
+| Benchmark | Bytes/op | Allocs/op |
+| --- | ---: | ---: |
+| Wrap | 128 | 1 |
+| CaptureMetrics | 417 | 13 |
+| CaptureMetricsTwice | 834 | 26 |
+
+Timing samples were noisy and are not evidence of a speed improvement. Tests
+(including all 512 interface combinations) passed on both toolchains, and the
+race tests and `go vet` passed on Go 1.27.1.

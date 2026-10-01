@@ -4,6 +4,7 @@ set -euo pipefail
 # Override GOTOOLCHAIN, GOOS, GOARCH, or OUT to compare other configurations.
 # All builds use the same source, toolchain, target, and CGO_ENABLED=0.
 script_dir=$(cd "$(dirname "$0")" && pwd)
+repo_dir=$(cd "$script_dir/../.." && pwd)
 export GOOS=${GOOS:-$(go env GOOS)}
 export GOARCH=${GOARCH:-$(go env GOARCH)}
 export CGO_ENABLED=0
@@ -40,7 +41,12 @@ for version in "$@"; do
   printf 'module binary-size-experiment\n\ngo 1.25\n' > "$src/go.mod"
   (
     cd "$src"
-    go mod edit "-require=github.com/felixge/httpsnoop@$version"
+    if [ "$version" = local ]; then
+      go mod edit -require=github.com/felixge/httpsnoop@v1.1.0 \
+        "-replace=github.com/felixge/httpsnoop=$repo_dir"
+    else
+      go mod edit "-require=github.com/felixge/httpsnoop@$version"
+    fi
     go mod tidy
     go list -m github.com/felixge/httpsnoop > "$out/$index-module.txt"
     for mode in default stripped; do
