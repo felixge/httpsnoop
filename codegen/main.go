@@ -112,7 +112,7 @@ type Hooks struct {
 // hooks can be used.
 `, strings.Join(docList, "\n"))
 	g.Printf("func Wrap(w http.ResponseWriter, hooks Hooks) http.ResponseWriter {\n")
-	g.Printf("state := &rwState{w: w}\n")
+	g.Printf("state := &rwState{rwFields: rwFields{w: w}}\n")
 
 	// Precompute hook chains once per Wrap call and
 	// build a uint8 combo index so the switch compiles to a jump table.
@@ -155,10 +155,11 @@ type Hooks struct {
 	g.Printf("panic(\"unreachable\")")
 	g.Printf("}\n\n")
 
-	// rwState holds the underlying writer plus the precomputed hooks.
-	// All variant types are type-definitions over rwState, so a single *rwState
-	// allocation can be reinterpreted as any variant via pointer conversion.
-	g.Printf("type rwState struct {\n")
+	// Nest the fields in a shared type so each variant's runtime type descriptor
+	// contains one embedded field rather than repeating the entire field list.
+	// Value embedding keeps the memory layout and single allocation unchanged.
+	g.Printf("type rwState struct { rwFields }\n\n")
+	g.Printf("type rwFields struct {\n")
 	g.Printf("w http.ResponseWriter\n")
 	for _, iface := range ifaces {
 		for _, fn := range iface.Funcs {
