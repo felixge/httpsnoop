@@ -32,6 +32,56 @@ func TestCaptureMetrics(t *testing.T) {
 			WantCode: http.StatusOK,
 		},
 		{
+			Name: "switching protocols",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusSwitchingProtocols)
+			}),
+			WantCode: http.StatusSwitchingProtocols,
+		},
+		{
+			Name: "early hints before switching protocols",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusEarlyHints)
+				w.WriteHeader(http.StatusSwitchingProtocols)
+			}),
+			WantCode: http.StatusSwitchingProtocols,
+		},
+		{
+			Name: "multiple informational headers before switching protocols",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusContinue)
+				w.WriteHeader(http.StatusEarlyHints)
+				w.WriteHeader(http.StatusSwitchingProtocols)
+			}),
+			WantCode: http.StatusSwitchingProtocols,
+		},
+		{
+			Name: "header after switching protocols",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusSwitchingProtocols)
+				w.WriteHeader(http.StatusNoContent)
+			}),
+			WantCode: http.StatusSwitchingProtocols,
+		},
+		{
+			Name: "early hints before final header",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusEarlyHints)
+				w.WriteHeader(http.StatusNoContent)
+			}),
+			WantCode: http.StatusNoContent,
+		},
+		{
+			Name: "informational headers before body",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusContinue)
+				w.WriteHeader(http.StatusEarlyHints)
+				w.Write([]byte("foo"))
+			}),
+			WantCode:    http.StatusOK,
+			WantWritten: 3,
+		},
+		{
 			Name: "headers and body",
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
@@ -107,11 +157,14 @@ func TestCaptureMetrics(t *testing.T) {
 			s := httptest.NewServer(h)
 			defer s.Close()
 			res, err := http.Get(s.URL)
-			if !errContains(err, test.WantErr) {
+			if (test.WantErr == "" && err != nil) || !errContains(err, test.WantErr) {
 				t.Errorf("test %d: got=%s want=%s", i, err, test.WantErr)
 			}
 			if err == nil {
 				defer res.Body.Close()
+				if res.StatusCode != test.WantCode {
+					t.Errorf("test %d: response code=%d want=%d", i, res.StatusCode, test.WantCode)
+				}
 			}
 			m := <-ch
 			if m.Code != test.WantCode {
