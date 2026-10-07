@@ -8,9 +8,9 @@ import (
 
 // Metrics holds metrics captured from CaptureMetrics.
 type Metrics struct {
-	// Code is the first http response code passed to the WriteHeader func of
-	// the ResponseWriter. If no such call is made, a default code of 200 is
-	// assumed instead.
+	// Code is the first final HTTP response code passed to WriteHeader,
+	// including 101 Switching Protocols. If no final response is written,
+	// a default code of 200 is assumed instead.
 	Code int
 	// Duration is the time it took to execute the handler.
 	Duration time.Duration
@@ -52,7 +52,7 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 				return func(code int) {
 					next(code)
 
-					if !(code >= 100 && code <= 199) && !headerWritten {
+					if !headerWritten && (code < 100 || code > 199 || code == http.StatusSwitchingProtocols) {
 						m.Code = code
 						headerWritten = true
 					}
