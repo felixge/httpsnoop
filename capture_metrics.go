@@ -83,7 +83,12 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
 
-					headerWritten = true
+					// A zero-byte ReadFrom does not commit a status. io.Copy
+					// from an empty or failed reader returns before WriteHeader,
+					// and the handler may still send 204 or 502.
+					if n > 0 {
+						headerWritten = true
+					}
 					m.Written += n
 					return n, err
 				}
