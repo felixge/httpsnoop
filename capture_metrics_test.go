@@ -1,6 +1,7 @@
 package httpsnoop
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -24,6 +26,7 @@ func TestCaptureMetrics(t *testing.T) {
 		WantDuration time.Duration
 		WantWritten  int64
 		WantCode     int
+		WantClient   int
 		WantErr      string
 	}{
 		{
@@ -60,6 +63,27 @@ func TestCaptureMetrics(t *testing.T) {
 			}),
 			WantWritten: 17,
 			WantCode:    http.StatusOK,
+		},
+		{
+			Name: "readfrom error then 502",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, err := io.Copy(w, iotest.ErrReader(errors.New("upstream failed")))
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+				}
+			}),
+			WantCode:   http.StatusBadGateway,
+			WantClient: http.StatusBadGateway,
+		},
+		{
+			Name: "readfrom empty then 204",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// A reader without WriteTo forces io.Copy through ReadFrom.
+				_, _ = io.Copy(w, eofReader{})
+				w.WriteHeader(http.StatusNoContent)
+			}),
+			WantCode:   http.StatusNoContent,
+			WantClient: http.StatusNoContent,
 		},
 		{
 			Name: "string writer",
@@ -112,6 +136,9 @@ func TestCaptureMetrics(t *testing.T) {
 			}
 			if err == nil {
 				defer res.Body.Close()
+				if test.WantClient != 0 && res.StatusCode != test.WantClient {
+					t.Errorf("test %d: client got=%d want=%d", i, res.StatusCode, test.WantClient)
+				}
 			}
 			m := <-ch
 			if m.Code != test.WantCode {
@@ -124,6 +151,10 @@ func TestCaptureMetrics(t *testing.T) {
 		})
 	}
 }
+
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
 
 func errContains(err error, s string) bool {
 	var errS string
