@@ -83,7 +83,9 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
 
-					headerWritten = true
+					if n > 0 {
+						headerWritten = true
+					}
 					m.Written += n
 					return n, err
 				}
