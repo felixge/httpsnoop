@@ -1,6 +1,7 @@
 package httpsnoop
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -133,4 +135,68 @@ func errContains(err error, s string) bool {
 		errS = err.Error()
 	}
 	return strings.Contains(errS, s)
+}
+
+// https://github.com/felixge/httpsnoop/issues/42
+// A ReadFrom that copies zero bytes must not mark the header as written:
+// the handler may still legitimately write a different status code
+// afterwards (e.g. http.Error after a failed io.Copy), and the metrics
+// must capture that status code.
+func TestCaptureMetricsCodeAfterZeroByteReadFrom(t *testing.T) {
+    tests := []struct {
+        Name     string
+        Handler  http.Handler
+        WantCode int
+    }{
+        {
+            Name: "read from error then http.Error",
+            Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                _, err := io.Copy(w, iotest.ErrReader(errors.New("upstream failed")))
+                if err != nil {
+                    http.Error(w, err.Error(), http.StatusBadGateway)
+                }
+            }),
+            WantCode: http.StatusBadGateway,
+        },
+        {
+            Name: "read from EOF then WriteHeader",
+            Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                _, _ = io.Copy(w, struct{ io.Reader }{strings.NewReader("")})
+                w.WriteHeader(http.StatusNoContent)
+            }),
+            WantCode: http.StatusNoContent,
+        },
+    }
+
+    for _, test := range tests {
+        t.Run(test.Name, func(t *testing.T) {
+            log.SetOutput(io.Discard)
+            defer log.SetOutput(os.Stderr)
+
+            ch := make(chan Metrics, 1)
+            h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                m := Metrics{Code: http.StatusOK}
+                defer func() { ch <- m }()
+                m.CaptureMetrics(w, func(ww http.ResponseWriter) {
+                    test.Handler.ServeHTTP(ww, r)
+                })
+            })
+            s := httptest.NewServer(h)
+            defer s.Close()
+
+            res, err := http.Get(s.URL)
+            if err != nil {
+                t.Fatalf("http.Get: %v", err)
+            }
+            res.Body.Close()
+            if res.StatusCode != test.WantCode {
+                t.Errorf("client: got=%d want=%d", res.StatusCode, test.WantCode)
+            }
+
+            m := <-ch
+            if m.Code != test.WantCode {
+                t.Errorf("metrics: got=%d want=%d", m.Code, test.WantCode)
+            }
+        })
+    }
 }
