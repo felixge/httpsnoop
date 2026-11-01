@@ -83,7 +83,13 @@ func (m *Metrics) CaptureMetrics(w http.ResponseWriter, fn func(http.ResponseWri
 				return func(src io.Reader) (int64, error) {
 					n, err := next(src)
 
-					headerWritten = true
+					// Only consider the header written if something was
+					// actually written: a ReadFrom that copies zero bytes
+					// does not commit the response, so the handler may
+					// still set the status code afterwards.
+					if n > 0 {
+						headerWritten = true
+					}
 					m.Written += n
 					return n, err
 				}
