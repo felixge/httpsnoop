@@ -134,3 +134,17 @@ func errContains(err error, s string) bool {
 	}
 	return strings.Contains(errS, s)
 }
+
+func TestCaptureMetricsZeroByteReadFromDoesNotWriteHeader(t *testing.T) {
+	m := CaptureMetrics(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.(io.ReaderFrom).ReadFrom(strings.NewReader(""))
+		if err != nil {
+			t.Errorf("ReadFrom returned error: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+	}), httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
+
+	if m.Code != http.StatusCreated {
+		t.Fatalf("Code = %d, want %d", m.Code, http.StatusCreated)
+	}
+}
